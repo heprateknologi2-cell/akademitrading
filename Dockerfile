@@ -7,7 +7,6 @@ RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir fastapi uvicorn
 
 COPY packages/data-engine/src ./src
-COPY packages/data-env/.env.production .env
 
 EXPOSE 8000
 
