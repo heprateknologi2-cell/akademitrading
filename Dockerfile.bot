@@ -1,0 +1,10 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir python-dotenv requests
+
+COPY apps/bot/src ./src
+COPY apps/bot/.env.production .env
+
+CMD ["python", "src/index.py"]

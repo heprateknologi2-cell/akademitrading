@@ -1,0 +1,25 @@
+{
+  "name": "akademitrading",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "web": "cd apps/web && npm run dev",
+    "web:build": "cd apps/web && npm run build",
+    "bot": "cd apps/bot && node src/index.ts",
+    "api": "cd packages/api && bun run dev",
+    "data:pipeline": "cd packages/data-engine && python run.py",
+    "data:fetch": "cd packages/data-engine && python scripts/fetch_daily.py",
+    "db:push": "cd packages/db && npx drizzle-kit push",
+    "db:generate": "cd packages/db && npx drizzle-kit generate",
+    "db:studio": "cd packages/db && npx drizzle-kit studio",
+    "deploy:netlify": "netlify deploy --prod --dir=apps/web/.next",
+    "deploy:verify": "bash scripts/verify-deploy.sh"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.5.0"
+  },
+  "packageManager": "npm@11.13.0"
+}

@@ -1,0 +1,38 @@
+[build]
+  publish = "apps/web/.next"
+  command = "npx next build --output standalone"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+[[redirects]]
+  from = "/_redirects"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Content-Type = "application/json"
+
+[[headers]]
+  for = "/sw.ts"
+  [headers.values]
+    Content-Type = "application/typescript"
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/icons/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[functions]]
+  path = "apps/web/src/app/api"
+  node_bundler = "esbuild"
