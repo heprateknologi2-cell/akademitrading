@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sinyal Trading",
-  description: "Sinyal trading saham Indonesia: golden cross, death cross, RSI, MACD, breakout, dan bandarmology. Update real-time untuk saham IDX.",
+  title: "Sinyal Saham Indonesia Hari Ini | Akademi Trading",
+  description: "Pantau sinyal teknikal saham Indonesia lengkap dengan konfirmasi, konteks risiko, skenario edukatif, dan metodologi transparan.",
   openGraph: {
-    title: "Sinyal Trading Saham — Akademitrading",
-    description: "Sinyal trading saham Indonesia real-time dengan analisis teknikal & bandarmology.",
+    title: "Sinyal Saham Indonesia Hari Ini | Akademi Trading",
+    description: "Alat bantu analisis sinyal teknikal dengan konteks konfirmasi dan risiko. Bukan rekomendasi personal.",
   },
 };
 
