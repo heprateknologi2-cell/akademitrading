@@ -141,6 +141,22 @@ function ScreenerContent() {
     return () => window.clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    if (!filtersOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFiltersOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [filtersOpen]);
+
   const load = useCallback(async () => {
     const params: Record<string, string> = { limit: "100", page: page.toString(), sort_by: sortBy, sort_order: sortOrder };
     if (sector) params.sector = sector;
@@ -198,7 +214,7 @@ function ScreenerContent() {
     <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div><h1 className="text-2xl font-bold">Screener Saham</h1><p className="mt-1 text-sm text-slate-400">Saring saham IDX berdasarkan teknikal dan fundamental.</p></div>
-        <button type="button" onClick={() => setFiltersOpen(value => !value)} aria-expanded={filtersOpen}
+        <button type="button" onClick={() => setFiltersOpen(value => !value)} aria-expanded={filtersOpen} aria-controls="screener-filter-panel"
           className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm transition hover:border-emerald-400/30 hover:bg-emerald-400/5">
           <Filter size={16} /> Filter {activeFilters > 0 && <span className="rounded-full bg-emerald-400 px-1.5 text-xs font-bold text-slate-950">{activeFilters}</span>}
         </button>
@@ -246,19 +262,23 @@ function ScreenerContent() {
         <button type="button" onClick={resetFilters} className="px-2 py-1.5 text-xs text-slate-400 hover:text-white">Hapus semua</button>
       </div>}
 
-      {filtersOpen && <section aria-label="Panel filter" className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#101827] to-[#0b1220] shadow-2xl shadow-black/30">
+      {filtersOpen && <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end" role="presentation">
+        <button type="button" className="absolute inset-0 cursor-default bg-black/65 backdrop-blur-[2px]" onClick={() => setFiltersOpen(false)} aria-label="Tutup filter" />
+        <section id="screener-filter-panel" role="dialog" aria-modal="true" aria-labelledby="filter-panel-title" className="relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-white/10 bg-gradient-to-b from-[#101827] to-[#0b1220] shadow-2xl shadow-black/50 sm:h-full sm:max-h-none sm:max-w-lg sm:rounded-none sm:rounded-l-2xl">
+          <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-white/20 sm:hidden" />
         <div className="flex items-center justify-between gap-4 border-b border-white/[0.07] px-4 py-3.5 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-400/10 text-emerald-300 ring-1 ring-inset ring-emerald-400/20"><Filter size={16} /></span>
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold text-slate-100">Sesuaikan hasil</h2>
+              <h2 id="filter-panel-title" className="text-sm font-semibold text-slate-100">Sesuaikan hasil</h2>
               <p className="truncate text-xs text-slate-500">{activeFilters ? `${activeFilters} filter aktif · ${stocks === null ? "Memuat…" : `${total} saham cocok`}` : "Pilih kriteria saham yang ingin ditampilkan"}</p>
             </div>
           </div>
           <button type="button" onClick={() => setFiltersOpen(false)} className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-white/[0.07] hover:text-white" aria-label="Tutup filter"><X size={17} /></button>
         </div>
 
-        <div className="grid gap-px bg-white/[0.07] sm:grid-cols-2 lg:grid-cols-4">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="grid gap-px bg-white/[0.07] sm:grid-cols-2">
         <label className="group bg-[#0d1523] p-4 transition hover:bg-[#111b2b]">
           <span className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"><Building2 size={13} className="text-emerald-400/70" /> Sektor</span>
         <FilterChoice value={sector} placeholder="Semua sektor" options={SECTORS.filter(Boolean).map(item => ({ value: item, label: item }))} onChange={value => { setSector(value); setPage(1); }} /></label>
@@ -287,7 +307,7 @@ function ScreenerContent() {
           {activeFilters > 0 && <button type="button" onClick={resetFilters} className="inline-flex items-center gap-1.5 text-xs text-slate-500 transition hover:text-red-300"><RotateCcw size={12} /> Reset</button>}
         </div>
 
-        {advancedFiltersOpen && <div className="grid gap-4 border-t border-white/[0.07] bg-black/10 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
+        {advancedFiltersOpen && <div className="grid gap-4 border-t border-white/[0.07] bg-black/10 p-4 sm:grid-cols-2 sm:p-5">
 
         <fieldset className="space-y-1.5"><legend className="text-xs font-medium text-slate-400">Rentang PE</legend><div className="flex items-center gap-2">
           <input type="number" min="0" step="0.1" value={minPe} onChange={e => { setMinPe(e.target.value); setPage(1); }}
@@ -340,8 +360,16 @@ function ScreenerContent() {
           <option value="avg_value_20-desc">Likuiditas ↓</option>
         </select></label>
         </div>}
+        </div>
 
-      </section>}
+        <div className="flex shrink-0 items-center gap-3 border-t border-white/[0.07] bg-[#0b1220] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-5">
+          <button type="button" onClick={resetFilters} disabled={activeFilters === 0} className="rounded-lg border border-white/10 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40">Reset</button>
+          <button type="button" onClick={() => setFiltersOpen(false)} className="flex-1 rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-emerald-300">
+            Selesai · {stocks === null ? "Memuat…" : `${total} saham`}
+          </button>
+        </div>
+      </section>
+      </div>}
 
       <section aria-labelledby="opportunity-heading" className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:p-5">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
