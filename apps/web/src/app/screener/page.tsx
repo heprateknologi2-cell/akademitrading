@@ -8,7 +8,7 @@ import { fetchScreener, type StockItem } from "@/lib/api";
 import { formatPrice, formatPercent, formatVolume, signalColor, signalLabel } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { Filter, Info, RefreshCw, RotateCcw } from "lucide-react";
+import { ChevronDown, Filter, Info, RefreshCw, RotateCcw, X } from "lucide-react";
 
 const SECTORS = [
   "", "Financials", "Consumer Cyclicals", "Consumer Non-Cyclicals",
@@ -66,6 +66,7 @@ function ScreenerContent() {
   const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "composite_score");
   const [sortOrder, setSortOrder] = useState(searchParams.get("sort_order") || "desc");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [error, setError] = useState("");
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -77,6 +78,20 @@ function ScreenerContent() {
     setMinPe(""); setMaxPe(""); setMinPbv(""); setMaxPbv(""); setMinDividendYield("");
     setMinAvgValue(""); setMaxAtrPercent(""); setPage(1);
   };
+
+  const activeFilterChips = [
+    sector && { label: sector, clear: () => setSector("") },
+    rsiFilter && { label: `RSI ${rsiFilter === "oversold" ? "< 30" : "> 70"}`, clear: () => setRsiFilter("") },
+    macdFilter && { label: `MACD ${macdFilter}`, clear: () => setMacdFilter("") },
+    signalFilter && { label: signalFilter.replaceAll("_", " "), clear: () => setSignalFilter("") },
+    minPe && { label: `PE ≥ ${minPe}`, clear: () => setMinPe("") },
+    maxPe && { label: `PE ≤ ${maxPe}`, clear: () => setMaxPe("") },
+    minPbv && { label: `PBV ≥ ${minPbv}`, clear: () => setMinPbv("") },
+    maxPbv && { label: `PBV ≤ ${maxPbv}`, clear: () => setMaxPbv("") },
+    minDividendYield && { label: `Dividen ≥ ${minDividendYield}%`, clear: () => setMinDividendYield("") },
+    minAvgValue && { label: `Likuiditas ≥ Rp${formatVolume(Number(minAvgValue))}`, clear: () => setMinAvgValue("") },
+    maxAtrPercent && { label: `ATR ≤ ${maxAtrPercent}%`, clear: () => setMaxAtrPercent("") },
+  ].filter((chip): chip is { label: string; clear: () => void } => Boolean(chip));
 
   const applyPreset = (preset: (typeof PRESETS)[number]) => {
     resetFilters();
@@ -152,7 +167,7 @@ function ScreenerContent() {
       <div className="flex items-end justify-between gap-4">
         <div><h1 className="text-2xl font-bold">Screener Saham</h1><p className="mt-1 text-sm text-slate-400">Saring saham IDX berdasarkan teknikal dan fundamental.</p></div>
         <button type="button" onClick={() => setFiltersOpen(value => !value)} aria-expanded={filtersOpen}
-          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm lg:hidden">
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm transition hover:border-emerald-400/30 hover:bg-emerald-400/5">
           <Filter size={16} /> Filter {activeFilters > 0 && <span className="rounded-full bg-emerald-400 px-1.5 text-xs font-bold text-slate-950">{activeFilters}</span>}
         </button>
       </div>
@@ -191,30 +206,47 @@ function ScreenerContent() {
         <span>{updatedAt ? `Diperbarui ${updatedAt.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}` : "Data pasar dapat tertunda"}</span>
       </div>
 
-      <div className={`${filtersOpen ? "flex" : "hidden"} flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 lg:flex lg:flex-row lg:flex-wrap lg:items-center lg:border-0 lg:bg-transparent lg:p-0`}>
+      {activeFilterChips.length > 0 && <div className="flex flex-wrap items-center gap-2" aria-label="Filter aktif">
+        {activeFilterChips.map(chip => <button key={chip.label} type="button" onClick={() => { chip.clear(); setPage(1); }}
+          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs text-emerald-300 transition hover:bg-emerald-400/15" aria-label={`Hapus filter ${chip.label}`}>
+          {chip.label}<X size={12} />
+        </button>)}
+        <button type="button" onClick={resetFilters} className="px-2 py-1.5 text-xs text-slate-400 hover:text-white">Hapus semua</button>
+      </div>}
+
+      {filtersOpen && <section aria-label="Panel filter" className="rounded-2xl border border-white/10 bg-[#0b1220] p-4 shadow-2xl sm:p-5">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div><h2 className="font-semibold text-slate-100">Filter saham</h2><p className="mt-1 text-xs text-slate-500">Perubahan langsung memperbarui hasil.</p></div>
+          <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Tutup filter"><X size={18} /></button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="space-y-1.5 text-xs font-medium text-slate-400">Sektor
         <select value={sector} onChange={e => { setSector(e.target.value); setPage(1); }}
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80">
+          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
           <option value="">Semua Sektor</option>
           {SECTORS.filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+        </select></label>
 
+        <label className="space-y-1.5 text-xs font-medium text-slate-400">RSI
         <select value={rsiFilter} onChange={e => { setRsiFilter(e.target.value); setPage(1); }}
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80">
-          <option value="">RSI: Semua</option>
+          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
+          <option value="">Semua kondisi</option>
           <option value="oversold">Oversold (&lt;30)</option>
           <option value="overbought">Overbought (&gt;70)</option>
-        </select>
+        </select></label>
 
+        <label className="space-y-1.5 text-xs font-medium text-slate-400">MACD
         <select value={macdFilter} onChange={e => { setMacdFilter(e.target.value); setPage(1); }}
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80">
-          <option value="">MACD: Semua</option>
+          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
+          <option value="">Semua kondisi</option>
           <option value="bullish">Bullish</option>
           <option value="bearish">Bearish</option>
-        </select>
+        </select></label>
 
+        <label className="space-y-1.5 text-xs font-medium text-slate-400">Sinyal
         <select value={signalFilter} onChange={e => { setSignalFilter(e.target.value); setPage(1); }}
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80">
-          <option value="">Sinyal: Semua</option>
+          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
+          <option value="">Semua sinyal</option>
           <option value="golden_cross">Golden Cross</option>
           <option value="death_cross">Death Cross</option>
           <option value="rsi_oversold">RSI Oversold</option>
@@ -222,60 +254,71 @@ function ScreenerContent() {
           <option value="macd_bullish">MACD Bullish</option>
           <option value="breakout">Breakout</option>
           <option value="volume_spike">Volume Spike</option>
-        </select>
+        </select></label>
+        </div>
 
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-white/40">PE</span>
+        <button type="button" onClick={() => setAdvancedFiltersOpen(value => !value)} aria-expanded={advancedFiltersOpen}
+          className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white">Filter lanjutan <ChevronDown size={15} className={`transition-transform ${advancedFiltersOpen ? "rotate-180" : ""}`} /></button>
+
+        {advancedFiltersOpen && <div className="mt-4 grid gap-4 border-t border-white/10 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+
+        <fieldset className="space-y-1.5"><legend className="text-xs font-medium text-slate-400">Rentang PE</legend><div className="flex items-center gap-2">
           <input type="number" min="0" step="0.1" value={minPe} onChange={e => { setMinPe(e.target.value); setPage(1); }}
-            placeholder="min" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+            placeholder="Minimum" aria-label="PE minimum" className="min-w-0 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
           <span className="text-xs text-white/40">-</span>
           <input type="number" min="0" step="0.1" value={maxPe} onChange={e => { setMaxPe(e.target.value); setPage(1); }}
-            placeholder="max" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
-        </div>
+            placeholder="Maksimum" aria-label="PE maksimum" className="min-w-0 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+        </div></fieldset>
 
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-white/40">PBV</span>
+        <fieldset className="space-y-1.5"><legend className="text-xs font-medium text-slate-400">Rentang PBV</legend><div className="flex items-center gap-2">
           <input type="number" min="0" step="0.1" value={minPbv} onChange={e => { setMinPbv(e.target.value); setPage(1); }}
-            placeholder="min" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+            placeholder="Minimum" aria-label="PBV minimum" className="min-w-0 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
           <span className="text-xs text-white/40">-</span>
           <input type="number" min="0" step="0.1" value={maxPbv} onChange={e => { setMaxPbv(e.target.value); setPage(1); }}
-            placeholder="max" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
-        </div>
+            placeholder="Maksimum" aria-label="PBV maksimum" className="min-w-0 w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+        </div></fieldset>
 
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-white/40">Div Yield ≥</span>
+        <label className="space-y-1.5 text-xs font-medium text-slate-400">Dividend yield minimum (%)
           <input type="number" min="0" step="0.1" value={minDividendYield} onChange={e => { setMinDividendYield(e.target.value); setPage(1); }}
-            placeholder="%" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
-        </div>
+            placeholder="Contoh: 3" className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+        </label>
 
+        <label className="space-y-1.5 text-xs font-medium text-slate-400">Likuiditas harian minimum
         <select value={minAvgValue} onChange={e => { setMinAvgValue(e.target.value); setPage(1); }} title="Rata-rata nilai transaksi 20 hari"
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80">
-          <option value="">Likuiditas: Semua</option>
+          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
+          <option value="">Semua likuiditas</option>
           <option value="100000000">≥ Rp100 juta/hari</option>
           <option value="500000000">≥ Rp500 juta/hari</option>
           <option value="1000000000">≥ Rp1 miliar/hari</option>
           <option value="5000000000">≥ Rp5 miliar/hari</option>
-        </select>
+        </select></label>
 
+        <label className="space-y-1.5 text-xs font-medium text-slate-400">Volatilitas maksimum
         <select value={maxAtrPercent} onChange={e => { setMaxAtrPercent(e.target.value); setPage(1); }} title="ATR sebagai persentase harga; makin tinggi makin volatil"
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80">
-          <option value="">Volatilitas: Semua</option>
+          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
+          <option value="">Semua volatilitas</option>
           <option value="2">ATR ≤ 2% (rendah)</option>
           <option value="4">ATR ≤ 4% (moderat)</option>
           <option value="6">ATR ≤ 6% (tinggi)</option>
-        </select>
+        </select></label>
 
+        <label className="space-y-1.5 text-xs font-medium text-slate-400">Urutkan hasil
         <select value={`${sortBy}-${sortOrder}`} onChange={e => { const [s, o] = e.target.value.split("-"); setSortBy(s); setSortOrder(o); }}
-          className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80">
+          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
           <option value="composite_score-desc">Score ↓</option>
           <option value="change_percent-desc">Gainer ↓</option>
           <option value="change_percent-asc">Loser ↑</option>
           <option value="price-desc">Harga ↓</option>
           <option value="volume-desc">Volume ↓</option>
           <option value="avg_value_20-desc">Likuiditas ↓</option>
-        </select>
-        {activeFilters > 0 && <button type="button" onClick={resetFilters} className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-white/5 hover:text-white"><RotateCcw size={14} /> Reset filter</button>}
-      </div>
+        </select></label>
+        </div>}
+
+        <div className="mt-5 flex flex-col-reverse gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <button type="button" onClick={resetFilters} disabled={activeFilters === 0} className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm text-slate-400 hover:bg-white/5 hover:text-white disabled:pointer-events-none disabled:opacity-40"><RotateCcw size={14} /> Reset filter</button>
+          <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-lg bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Lihat {stocks === null ? "hasil" : `${total} hasil`}</button>
+        </div>
+      </section>}
 
       <section aria-labelledby="opportunity-heading" className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:p-5">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
