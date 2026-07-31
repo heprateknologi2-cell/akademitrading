@@ -18,6 +18,24 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Link from "next/link";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+interface DividendItem {
+  code: string;
+  ex_date: string;
+  amount?: number | null;
+}
+
+interface TaxReport {
+  year: number;
+  has_npwp: boolean;
+  realized_pnl: number;
+  dividends_received: number;
+  final_tax_stock: number;
+  final_tax_dividend: number;
+  net_income: number;
+  trades: Array<{ id: number; code: string; closed_at?: string; sell_value: number; realized_pnl: number; tax: number }>;
+}
 
 const EMPTY: PortfolioData = {
   summary: {
@@ -46,6 +64,12 @@ export default function PortfolioPage() {
   const [exitPrice, setExitPrice] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [dividendItems, setDividendItems] = useState<DividendItem[]>([]);
+  const [taxOpen, setTaxOpen] = useState(false);
+  const [taxYear, setTaxYear] = useState(new Date().getFullYear());
+  const [hasNpwp, setHasNpwp] = useState(true);
+  const [taxReport, setTaxReport] = useState<TaxReport | null>(null);
+  const [taxLoading, setTaxLoading] = useState(false);
 
   const refresh = () => {
     fetchPortfolio().then(res => {
@@ -68,6 +92,11 @@ export default function PortfolioPage() {
     });
   }, [session, status]);
 
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/dividends?upcoming=true&days=365").then((res) => res.json()).then((json) => setDividendItems(json.data || [])).catch(() => setDividendItems([]));
+  }, [status]);
+
   if (status === "loading" || loading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-pulse text-white/40">Loading...</div></div>;
   }
@@ -82,6 +111,36 @@ export default function PortfolioPage() {
   }
 
   const s = data.summary;
+  const portfolioDividends = dividendItems.filter((item) => data.open.some((position) => position.code === item.code));
+  const monthlyDividends = Array.from({ length: 12 }, (_, month) => ({
+    month: new Date(2026, month, 1).toLocaleDateString("id-ID", { month: "short" }),
+    amount: portfolioDividends.filter((item) => new Date(item.ex_date).getMonth() === month).reduce((sum, item) => {
+      const position = data.open.find((candidate) => candidate.code === item.code);
+      return sum + (item.amount || 0) * (position?.quantity || 0) * 100;
+    }, 0),
+  }));
+  const projectedDividends = monthlyDividends.reduce((sum, item) => sum + item.amount, 0);
+
+  async function loadTaxReport() {
+    setTaxLoading(true);
+    const res = await fetch(`/api/portfolio/tax-report?year=${taxYear}&npwp=${hasNpwp}`);
+    const json = await res.json();
+    setTaxReport(res.ok ? json.data : null);
+    setTaxLoading(false);
+  }
+
+  function exportTaxCsv() {
+    if (!taxReport) return;
+    const rows = [["Kode", "Tanggal Tutup", "Nilai Jual", "Realized P&L", "PPh Final Saham"], ...taxReport.trades.map((trade) => [trade.code, trade.closed_at || "", trade.sell_value, trade.realized_pnl, trade.tax])];
+    rows.push([], ["Ringkasan", "Jumlah"], ["Realized P&L", taxReport.realized_pnl], ["Dividen Diterima", taxReport.dividends_received], ["PPh Final Saham", taxReport.final_tax_stock], ["PPh Dividen", taxReport.final_tax_dividend], ["Pendapatan Bersih", taxReport.net_income]);
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `laporan-pajak-${taxReport.year}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function handleClose() {
     if (!closing) return;
@@ -123,9 +182,7 @@ export default function PortfolioPage() {
           <h1 className="text-2xl font-bold">Portofolio</h1>
           <p className="text-sm text-white/60">Paper trading — pantau & evaluasi posisi Anda</p>
         </div>
-        <Link href="/screener" className="text-sm bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-lg border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors">
-          + Buka Posisi
-        </Link>
+        <div className="flex gap-2"><button onClick={() => setTaxOpen(true)} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/60 hover:bg-white/5">Laporan Pajak</button><Link href="/screener" className="text-sm bg-emerald-500/20 text-emerald-400 px-4 py-2 rounded-lg border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors">+ Buka Posisi</Link></div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -234,6 +291,42 @@ export default function PortfolioPage() {
           </div>
         )}
       </div>
+
+      <div className="rounded-xl border border-white/10 bg-white/[0.02] p-5 space-y-5">
+        <div className="flex items-center justify-between">
+          <div><h2 className="font-semibold">Pendapatan Dividen</h2><p className="text-xs text-white/40">Proyeksi berdasarkan posisi terbuka dan jadwal yang tersedia.</p></div>
+          <div className="text-right"><div className="text-xs text-white/40">Proyeksi 12 bulan</div><div className="font-mono text-lg text-emerald-400">{formatPrice(projectedDividends)}</div></div>
+        </div>
+        <div className="h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyDividends}>
+              <CartesianGrid stroke="rgba(255,255,255,.06)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,.45)", fontSize: 11 }} />
+              <YAxis tick={{ fill: "rgba(255,255,255,.45)", fontSize: 11 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
+              <Tooltip formatter={(value) => formatPrice(Number(value))} contentStyle={{ background: "#020817", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8 }} />
+              <Bar dataKey="amount" fill="#10b981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="divide-y divide-white/5">
+          {portfolioDividends.slice(0, 5).map((item, index) => {
+            const position = data.open.find((candidate) => candidate.code === item.code);
+            const estimate = (item.amount || 0) * (position?.quantity || 0) * 100;
+            return <div key={`${item.code}-${item.ex_date}-${index}`} className="flex items-center justify-between py-2 text-sm"><div><Link href={`/stocks/${item.code}`} className="font-medium text-emerald-400">{item.code}</Link><span className="ml-2 text-xs text-white/40">Ex-date {new Date(item.ex_date).toLocaleDateString("id-ID")}</span></div><span className="font-mono">{formatPrice(estimate)}</span></div>;
+          })}
+          {portfolioDividends.length === 0 && <div className="py-4 text-sm text-white/40">Belum ada jadwal dividen untuk posisi terbuka.</div>}
+        </div>
+        <Link href="/dividends" className="inline-block text-sm text-emerald-400 hover:text-emerald-300">Lihat semua jadwal dividen →</Link>
+      </div>
+
+      <Dialog open={taxOpen} onOpenChange={setTaxOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader><DialogTitle>Laporan Pajak Saham</DialogTitle><DialogDescription>Estimasi PPh final dari transaksi tertutup dan dividen. Verifikasi dengan konsultan pajak sebelum pelaporan.</DialogDescription></DialogHeader>
+          <div className="space-y-4"><div className="flex flex-wrap items-end gap-3"><label className="text-sm">Tahun<input type="number" min="2000" max="2100" value={taxYear} onChange={(event) => setTaxYear(Number(event.target.value))} className="mt-1 block w-28 rounded-lg border border-white/10 bg-white/5 px-3 py-2" /></label><label className="flex items-center gap-2 pb-2 text-sm"><input type="checkbox" checked={hasNpwp} onChange={(event) => setHasNpwp(event.target.checked)} /> Memiliki NPWP</label><button onClick={loadTaxReport} disabled={taxLoading} className="rounded-lg border border-emerald-500/30 bg-emerald-500/20 px-4 py-2 text-sm text-emerald-400 disabled:opacity-50">{taxLoading ? "Menghitung..." : "Hitung"}</button></div>
+          {taxReport && <><div className="overflow-hidden rounded-lg border border-white/10"><table className="w-full text-sm"><tbody className="divide-y divide-white/5">{[["Realized P&L", taxReport.realized_pnl], ["Dividen Diterima", taxReport.dividends_received], ["PPh Final Saham (0,1% nilai jual)", taxReport.final_tax_stock], [`PPh Dividen (${taxReport.has_npwp ? "0%/10%" : "20%"})`, taxReport.final_tax_dividend], ["Pendapatan Bersih", taxReport.net_income]].map(([label, value]) => <tr key={String(label)}><td className="p-3 text-white/60">{label}</td><td className="p-3 text-right font-mono">{formatPrice(Number(value))}</td></tr>)}</tbody></table></div><div className="max-h-52 overflow-auto rounded-lg border border-white/10"><table className="w-full text-xs"><thead className="sticky top-0 bg-[#020817] text-white/40"><tr><th className="p-2 text-left">Kode</th><th className="p-2 text-right">Nilai Jual</th><th className="p-2 text-right">P&L</th><th className="p-2 text-right">Pajak</th></tr></thead><tbody>{taxReport.trades.map((trade) => <tr key={trade.id} className="border-t border-white/5"><td className="p-2">{trade.code}</td><td className="p-2 text-right">{formatPrice(trade.sell_value)}</td><td className="p-2 text-right">{formatPrice(trade.realized_pnl)}</td><td className="p-2 text-right">{formatPrice(trade.tax)}</td></tr>)}</tbody></table></div><div className="flex justify-end"><button onClick={exportTaxCsv} className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/60 hover:bg-white/5">Export CSV</button></div></>}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!closing} onOpenChange={(open) => { if (!open) setClosing(null); }}>
         <DialogContent>

@@ -5,14 +5,17 @@ import { useSession } from "next-auth/react";
 import {
   fetchStockDetail,
   fetchStockHistory,
+  fetchStocks,
   fetchWatchlist,
   addToWatchlist,
   removeFromWatchlist,
   openPosition,
   type Candle,
   type WatchlistItem,
+  type StockSearchItem,
 } from "@/lib/api";
 import { formatPrice, formatPercent, signalColor, signalLabel } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import { StockChart } from "@/components/stock-chart";
 import {
   Dialog,
@@ -67,6 +70,23 @@ interface StockDetail {
   indicators?: StockIndicators;
 }
 
+interface StockRating {
+  rating: "Strong Buy" | "Buy" | "Neutral" | "Sell" | "Strong Sell";
+  buy_count: number;
+  sell_count: number;
+  neutral_count: number;
+  total_signals: number;
+  confidence: number;
+}
+
+function ratingClass(rating: StockRating["rating"]) {
+  if (rating === "Strong Buy") return "border-emerald-500 bg-emerald-500 text-[#020817]";
+  if (rating === "Buy") return "border-emerald-500/50 text-emerald-400";
+  if (rating === "Strong Sell") return "border-red-500 bg-red-500 text-white";
+  if (rating === "Sell") return "border-red-500/50 text-red-400";
+  return "border-white/10 bg-white/5 text-white/50";
+}
+
 export default function StockDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { status } = useSession();
@@ -75,6 +95,12 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
   const [range, setRange] = useState("6mo");
   const [loading, setLoading] = useState(true);
   const [chartLoading, setChartLoading] = useState(true);
+  const [compareSearch, setCompareSearch] = useState("");
+  const [compareCode, setCompareCode] = useState("");
+  const [compareCandles, setCompareCandles] = useState<Candle[]>([]);
+  const [compareOptions, setCompareOptions] = useState<StockSearchItem[]>([]);
+  const [rating, setRating] = useState<StockRating | null>(null);
+  const [ratingOpen, setRatingOpen] = useState(false);
 
   const [wl, setWl] = useState<WatchlistItem | null>(null);
   const [alertOpen, setAlertOpen] = useState(false);
@@ -102,11 +128,33 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
   }, [id]);
 
   useEffect(() => {
+    fetch(`/api/stocks/${encodeURIComponent(id)}/rating`).then((res) => res.json()).then((json) => setRating(json.data || null)).catch(() => setRating(null));
+  }, [id]);
+
+  useEffect(() => {
     fetchStockHistory(id, range).then(res => {
       setCandles(res.data || []);
       setChartLoading(false);
     }).catch(() => setChartLoading(false));
   }, [id, range]);
+
+  useEffect(() => {
+    if (!compareCode) return;
+    let active = true;
+    fetchStockHistory(compareCode, range)
+      .then((res) => { if (active) setCompareCandles(res.data || []); })
+      .catch(() => { if (active) setCompareCandles([]); });
+    return () => { active = false; };
+  }, [compareCode, range]);
+
+  useEffect(() => {
+    const term = compareSearch.trim();
+    if (term.length < 2 || term.toLowerCase() === compareCode.toLowerCase()) return;
+    const timer = setTimeout(() => {
+      fetchStocks(term).then((res) => setCompareOptions((res.data || []).filter((item) => item.code.toLowerCase() !== id.toLowerCase()).slice(0, 6))).catch(() => setCompareOptions([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [compareSearch, compareCode, id]);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -117,7 +165,40 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
     });
   }, [id, status]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-pulse text-white/40">Loading...</div></div>;
+  if (loading) return (
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-32" />
+        <Skeleton className="h-4 w-48" />
+        <div className="flex items-baseline gap-3 mt-2">
+          <Skeleton className="h-7 w-32" />
+          <Skeleton className="h-5 w-20" />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-28 rounded-lg" />
+        <Skeleton className="h-9 w-36 rounded-lg" />
+        <Skeleton className="h-9 w-32 rounded-lg" />
+      </div>
+      <div className="rounded-xl border border-white/10 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <Skeleton className="h-5 w-24" />
+          <div className="flex gap-1">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-7 w-10 rounded-md" />)}
+          </div>
+        </div>
+        <Skeleton className="h-96 w-full" />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-2">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-5 w-16" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
   if (!data) return <div className="text-center py-12 text-white/40">Data tidak ditemukan</div>;
 
   const loggedIn = status === "authenticated";
@@ -195,12 +276,28 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
           <div className="text-sm text-white/60">{data.name}</div>
         </div>
         <div className="text-right">
+          {rating && <button onClick={() => setRatingOpen(true)} className={`mb-2 rounded-full border px-3 py-1 text-xs font-bold ${ratingClass(rating.rating)}`}>{rating.rating} · {rating.confidence}%</button>}
           <div className="text-3xl font-bold font-mono">{formatPrice(data.price)}</div>
           <div className={`text-lg font-mono ${data.change_percent >= 0 ? "text-emerald-400" : "text-red-400"}`}>
             {formatPercent(data.change_percent)}
           </div>
         </div>
       </div>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FinancialProduct",
+            name: data.name,
+            identifier: data.code,
+            category: "Stock",
+            market: "Bursa Efek Indonesia (IDX)",
+            offers: { "@type": "Offer", price: data.price, priceCurrency: "IDR" },
+          }),
+        }}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -234,7 +331,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-4 text-xs">
             <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-amber-500 inline-block" /> SMA 20</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 inline-block" /> SMA 50</span>
@@ -255,10 +352,30 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
             ))}
           </div>
         </div>
+        <div className="relative max-w-sm">
+          <input
+            value={compareSearch}
+            onChange={(event) => { setCompareSearch(event.target.value.toUpperCase()); if (!event.target.value) { setCompareCode(""); setCompareCandles([]); setCompareOptions([]); } }}
+            placeholder="Bandingkan dengan kode/nama..."
+            className="w-full rounded-lg border border-white/10 bg-[#020817] px-3 py-2 text-sm outline-none focus:border-amber-500/50"
+          />
+          {compareOptions.length > 0 && compareSearch !== compareCode && (
+            <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-white/10 bg-[#020817] shadow-xl">
+              {compareOptions.map((item) => (
+                <button key={item.code} onClick={() => { setCompareCode(item.code); setCompareSearch(item.code); setCompareOptions([]); }} className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/5">
+                  <span className="font-medium text-amber-400">{item.code}</span><span className="max-w-48 truncate text-xs text-white/40">{item.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {compareCode && <div className="mt-1 text-xs text-amber-400">Garis amber: {compareCode} · indeks basis 100</div>}
+        </div>
         {chartLoading ? (
-          <div className="flex items-center justify-center h-[420px] text-white/40 text-sm animate-pulse">Memuat chart...</div>
+          <div className="flex items-center justify-center h-[420px]">
+            <Skeleton className="h-[420px] w-full" />
+          </div>
         ) : (
-          <StockChart candles={candles} />
+          <StockChart candles={candles} compareCandles={compareCandles} compareLabel={compareCode} normalize={Boolean(compareCode)} />
         )}
       </div>
 
@@ -327,6 +444,13 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
       )}
+
+      <Dialog open={ratingOpen} onOpenChange={setRatingOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Rating Sinyal {data.code}</DialogTitle><DialogDescription>Agregasi sinyal teknikal terbaru, bukan rekomendasi investasi.</DialogDescription></DialogHeader>
+          {rating && <div className="space-y-4"><div className="text-center"><span className={`inline-block rounded-full border px-4 py-2 text-sm font-bold ${ratingClass(rating.rating)}`}>{rating.rating}</span><div className="mt-2 text-sm text-white/40">Confidence {rating.confidence}% · {rating.total_signals} sinyal</div></div><div className="grid grid-cols-3 gap-3"><div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-center"><div className="text-xs text-emerald-400">Buy</div><div className="text-xl font-bold">{rating.buy_count}</div></div><div className="rounded-lg border border-white/10 bg-white/5 p-3 text-center"><div className="text-xs text-white/40">Netral</div><div className="text-xl font-bold">{rating.neutral_count}</div></div><div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-center"><div className="text-xs text-red-400">Sell</div><div className="text-xl font-bold">{rating.sell_count}</div></div></div></div>}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={alertOpen} onOpenChange={setAlertOpen}>
         <DialogContent>

@@ -8,6 +8,20 @@
       "when": 1785465674522,
       "tag": "0000_unknown_swarm",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785512025772,
+      "tag": "0001_strange_red_skull",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785512296348,
+      "tag": "0002_fancy_shriek",
+      "breakpoints": true
     }
   ]
 }

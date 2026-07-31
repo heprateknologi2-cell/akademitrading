@@ -99,6 +99,14 @@ export async function broadcastSignal(data: any[]) {
   }
 }
 
+export async function notifyDividends(items: Array<{ telegram_id: string; code: string; ex_date: string; amount?: number }>) {
+  for (const item of items) {
+    const amount = item.amount ? ` sebesar Rp${item.amount.toLocaleString("id-ID")}/saham` : "";
+    const date = new Date(item.ex_date).toLocaleDateString("id-ID", { dateStyle: "long" });
+    await bot.api.sendMessage(item.telegram_id, `💰 *Pengingat Dividen*\n\n${item.code} akan memasuki ex-date pada ${date}${amount}.`, { parse_mode: "Markdown" }).catch(() => {});
+  }
+}
+
 export function startBot() {
   bot.start({ onStart: () => console.log("🤖 Bot started") });
 }

@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { fetchWatchlist, fetchMarketOverview, type WatchlistItem, type MarketOverview } from "@/lib/api";
 import { formatPrice, formatPercent, formatVolume } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 
 export default function DashboardPage() {
@@ -46,20 +47,39 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-          <div className="text-xs text-white/40 uppercase tracking-wider">Tier</div>
-          <div className={`text-lg font-bold mt-1 ${session?.user?.tier === "pro" ? "text-emerald-400" : "text-white/60"}`}>
-            {session?.user?.tier === "pro" ? "PRO" : "Free"}
-          </div>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-          <div className="text-xs text-white/40 uppercase tracking-wider">Email</div>
-          <div className="text-sm font-mono mt-1 text-white/80">{session?.user?.email}</div>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5">
-          <div className="text-xs text-white/40 uppercase tracking-wider">Watchlist</div>
-          <div className="text-lg font-bold mt-1 text-cyan-400">{watchlist.length} saham</div>
-        </div>
+        {loading ? (
+          <>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-6 w-20" />
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-6 w-32" />
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-6 w-24" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+              <div className="text-xs text-white/40 uppercase tracking-wider">Tier</div>
+              <div className={`text-lg font-bold mt-1 ${session?.user?.tier === "pro" ? "text-emerald-400" : "text-white/60"}`}>
+                {session?.user?.tier === "pro" ? "PRO" : "Free"}
+              </div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+              <div className="text-xs text-white/40 uppercase tracking-wider">Email</div>
+              <div className="text-sm font-mono mt-1 text-white/80">{session?.user?.email}</div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+              <div className="text-xs text-white/40 uppercase tracking-wider">Watchlist</div>
+              <div className="text-lg font-bold mt-1 text-cyan-400">{watchlist.length} saham</div>
+            </div>
+          </>
+        )}
       </div>
 
       {market && (
@@ -151,7 +171,26 @@ export default function DashboardPage() {
           <Link href="/screener" className="text-xs text-emerald-400 hover:text-emerald-300">+ Tambah Saham</Link>
         </div>
         {loading ? (
-          <div className="text-center py-8 text-white/40">Loading...</div>
+          <div className="rounded-xl border border-white/10 overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <Skeleton className="h-5 w-28" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+            <div className="divide-y divide-white/5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between py-3 px-5">
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-14" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                  <div className="text-right space-y-1">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-3 w-14 ml-auto" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : watchlist.length === 0 ? (
           <div className="text-center py-8 text-white/40">
             <p>Belum ada saham di watchlist</p>

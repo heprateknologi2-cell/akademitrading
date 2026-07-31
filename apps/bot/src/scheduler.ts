@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import { config } from "./config";
-import { broadcastSignal } from "./bot";
+import { broadcastSignal, notifyDividends } from "./bot";
 
 export function startScheduler() {
   cron.schedule("30 7 * * 1-5", async () => {
@@ -10,6 +10,7 @@ export function startScheduler() {
       const json = (await res.json()) as { data?: any };
       if (json.data?.length > 0) {
         await broadcastSignal(json.data);
+        await fetch(`${config.API_URL}/api/signals/broadcast`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ signals: json.data }) }).catch(() => {});
       }
     } catch (e) {
       console.error("[Scheduler] Error:", e);
@@ -23,9 +24,21 @@ export function startScheduler() {
       const json = (await res.json()) as { data?: any };
       if (json.data?.length > 0) {
         await broadcastSignal(json.data);
+        await fetch(`${config.API_URL}/api/signals/broadcast`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ signals: json.data }) }).catch(() => {});
       }
     } catch (e) {
       console.error("[Scheduler] Error:", e);
+    }
+  }, { timezone: "Asia/Jakarta" });
+
+  cron.schedule("0 8 * * *", async () => {
+    console.log("[Scheduler] Dividend reminders");
+    try {
+      const res = await fetch(`${config.API_URL}/api/dividends/notifications?days=3`);
+      const json = (await res.json()) as { data?: Array<{ telegram_id: string; code: string; ex_date: string; amount?: number }> };
+      if (json.data?.length) await notifyDividends(json.data);
+    } catch (e) {
+      console.error("[Scheduler] Dividend error:", e);
     }
   }, { timezone: "Asia/Jakarta" });
 

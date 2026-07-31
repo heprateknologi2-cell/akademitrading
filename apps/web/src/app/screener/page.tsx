@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { fetchScreener, type StockItem } from "@/lib/api";
 import { formatPrice, formatPercent, formatVolume, signalColor, signalLabel } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 
 const SECTORS = [
@@ -11,27 +14,39 @@ const SECTORS = [
   "Healthcare", "Technology", "Property & Real Estate",
 ];
 
-export default function ScreenerPage() {
+function ScreenerContent() {
+  const searchParams = useSearchParams();
+  const tableRef = useRef<HTMLDivElement>(null);
   const [stocks, setStocks] = useState<StockItem[] | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [sector, setSector] = useState("");
+  const [sector, setSector] = useState(searchParams.get("sector") || "");
   const [rsiFilter, setRsiFilter] = useState("");
   const [macdFilter, setMacdFilter] = useState("");
   const [signalFilter, setSignalFilter] = useState("");
+  const [minPe, setMinPe] = useState("");
+  const [maxPe, setMaxPe] = useState("");
+  const [minPbv, setMinPbv] = useState("");
+  const [maxPbv, setMaxPbv] = useState("");
+  const [minDividendYield, setMinDividendYield] = useState("");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("composite_score");
-  const [sortOrder, setSortOrder] = useState("desc");
+  const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "composite_score");
+  const [sortOrder, setSortOrder] = useState(searchParams.get("sort_order") || "desc");
 
   const load = useCallback(async () => {
-    const params: Record<string, string> = { limit: "50", page: page.toString(), sort_by: sortBy, sort_order: sortOrder };
+    const params: Record<string, string> = { limit: "100", page: page.toString(), sort_by: sortBy, sort_order: sortOrder };
     if (sector) params.sector = sector;
     if (rsiFilter) params.rsi_filter = rsiFilter;
     if (macdFilter) params.macd_filter = macdFilter;
     if (signalFilter) params.signal_filter = signalFilter;
+    if (minPe) params.min_pe = minPe;
+    if (maxPe) params.max_pe = maxPe;
+    if (minPbv) params.min_pbv = minPbv;
+    if (maxPbv) params.max_pbv = maxPbv;
+    if (minDividendYield) params.min_dividend_yield = minDividendYield;
     if (search.trim()) params.search = search.trim();
     return fetchScreener(params);
-  }, [page, sector, rsiFilter, macdFilter, signalFilter, search, sortBy, sortOrder]);
+  }, [page, sector, rsiFilter, macdFilter, signalFilter, minPe, maxPe, minPbv, maxPbv, minDividendYield, search, sortBy, sortOrder]);
 
   useEffect(() => {
     let active = true;
@@ -42,6 +57,13 @@ export default function ScreenerPage() {
     }).catch(() => { if (active) setStocks([]); });
     return () => { active = false; };
   }, [load]);
+
+  const virtualizer = useVirtualizer({
+    count: stocks?.length || 0,
+    getScrollElement: () => tableRef.current,
+    estimateSize: () => 52,
+    overscan: 5,
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
@@ -93,6 +115,30 @@ export default function ScreenerPage() {
           <option value="volume_spike">Volume Spike</option>
         </select>
 
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-white/40">PE</span>
+          <input type="number" min="0" step="0.1" value={minPe} onChange={e => { setMinPe(e.target.value); setPage(1); }}
+            placeholder="min" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+          <span className="text-xs text-white/40">-</span>
+          <input type="number" min="0" step="0.1" value={maxPe} onChange={e => { setMaxPe(e.target.value); setPage(1); }}
+            placeholder="max" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+        </div>
+
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-white/40">PBV</span>
+          <input type="number" min="0" step="0.1" value={minPbv} onChange={e => { setMinPbv(e.target.value); setPage(1); }}
+            placeholder="min" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+          <span className="text-xs text-white/40">-</span>
+          <input type="number" min="0" step="0.1" value={maxPbv} onChange={e => { setMaxPbv(e.target.value); setPage(1); }}
+            placeholder="max" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+        </div>
+
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-white/40">Div Yield ≥</span>
+          <input type="number" min="0" step="0.1" value={minDividendYield} onChange={e => { setMinDividendYield(e.target.value); setPage(1); }}
+            placeholder="%" className="w-16 bg-white/5 border border-white/10 rounded-lg px-2 py-2 text-sm text-white/80 focus:outline-none focus:border-emerald-500/50" />
+        </div>
+
         <select value={`${sortBy}-${sortOrder}`} onChange={e => { const [s, o] = e.target.value.split("-"); setSortBy(s); setSortOrder(o); }}
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80">
           <option value="composite_score-desc">Score ↓</option>
@@ -104,10 +150,10 @@ export default function ScreenerPage() {
       </div>
 
       <div className="rounded-xl border border-white/10 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/10 bg-white/5 text-white/60 text-xs uppercase tracking-wider">
+        <div ref={tableRef} className="max-h-[680px] overflow-auto">
+          <table className="grid min-w-[1100px] w-full text-sm">
+            <thead className="sticky top-0 z-10 grid bg-[#0a1020]">
+              <tr className="grid grid-cols-[80px_1.5fr_1.2fr_110px_90px_90px_85px_65px_65px_65px_1.5fr] border-b border-white/10 bg-white/5 text-white/60 text-xs uppercase tracking-wider">
                 <th className="text-left p-3">Kode</th>
                 <th className="text-left p-3">Nama</th>
                 <th className="text-left p-3">Sektor</th>
@@ -121,13 +167,29 @@ export default function ScreenerPage() {
                 <th className="text-left p-3">Sinyal</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="relative grid" style={{ height: stocks ? virtualizer.getTotalSize() : undefined }}>
               {stocks === null ? (
-                <tr><td colSpan={11} className="text-center p-8 text-white/40">Loading...</td></tr>
+                Array.from({ length: 12 }).map((_, i) => (
+                  <tr key={i} className="grid grid-cols-[80px_1.5fr_1.2fr_110px_90px_90px_85px_65px_65px_65px_1.5fr] border-b border-white/5">
+                    <td className="p-3"><Skeleton className="h-4 w-12" /></td>
+                    <td className="p-3"><Skeleton className="h-4 w-32" /></td>
+                    <td className="p-3"><Skeleton className="h-4 w-24" /></td>
+                    <td className="p-3 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                    <td className="p-3 text-right"><Skeleton className="h-4 w-14 ml-auto" /></td>
+                    <td className="p-3 text-right"><Skeleton className="h-4 w-14 ml-auto" /></td>
+                    <td className="p-3 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                    <td className="p-3 text-right"><Skeleton className="h-4 w-10 ml-auto" /></td>
+                    <td className="p-3 text-right"><Skeleton className="h-4 w-10 ml-auto" /></td>
+                    <td className="p-3 text-right"><Skeleton className="h-4 w-10 ml-auto" /></td>
+                    <td className="p-3"><Skeleton className="h-4 w-20" /></td>
+                  </tr>
+                ))
               ) : stocks.length === 0 ? (
                 <tr><td colSpan={11} className="text-center p-8 text-white/40">Tidak ada data</td></tr>
-              ) : stocks.map((stock) => (
-                <tr key={stock.code} className="hover:bg-white/5 transition-colors">
+              ) : virtualizer.getVirtualItems().map((virtualRow) => {
+                const stock = stocks[virtualRow.index];
+                return (
+                <tr key={stock.code} className="absolute left-0 top-0 grid w-full grid-cols-[80px_1.5fr_1.2fr_110px_90px_90px_85px_65px_65px_65px_1.5fr] border-b border-white/5 hover:bg-white/5 transition-colors" style={{ height: virtualRow.size, transform: `translateY(${virtualRow.start}px)` }}>
                   <td className="p-3">
                     <Link href={`/stocks/${stock.code}`} className="font-medium text-emerald-400 hover:text-emerald-300">
                       {stock.code}
@@ -160,7 +222,8 @@ export default function ScreenerPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -172,10 +235,14 @@ export default function ScreenerPage() {
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
             className="px-3 py-1 rounded border border-white/10 disabled:opacity-30 hover:bg-white/5">Prev</button>
           <span className="px-3 py-1">Page {page}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={(stocks?.length ?? 0) < 50}
+          <button onClick={() => setPage(p => p + 1)} disabled={(stocks?.length ?? 0) < 100}
             className="px-3 py-1 rounded border border-white/10 disabled:opacity-30 hover:bg-white/5">Next</button>
         </div>
       </div>
     </div>
   );
+}
+
+export default function ScreenerPage() {
+  return <Suspense fallback={<div className="max-w-7xl mx-auto px-4 py-8"><Skeleton className="h-[680px] w-full" /></div>}><ScreenerContent /></Suspense>;
 }

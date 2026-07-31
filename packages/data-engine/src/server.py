@@ -1,14 +1,16 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
-from datetime import datetime
+from datetime import date, datetime, timedelta
 import json
 import math
+import os
+import psycopg2
 
 from .fetcher import IDX_TICKERS, IHSG_TICKER, fetch_stock_history, get_stock_info
 from .indicators import calculate_all_indicators, detect_signals
 from .signals import compute_composite_score, get_composite_direction
-from .cache import run_parallel, clear_cache, cache_ttl_status
+from .cache import run_parallel, clear_cache, cache_ttl_status, get_cached
 
 
 class SafeJSONResponse(JSONResponse):
@@ -29,6 +31,31 @@ class SafeJSONResponse(JSONResponse):
 
 
 app = FastAPI(title="Akademitrading Data Engine", version="1.1.0", default_response_class=SafeJSONResponse)
+
+
+class SignalConnectionManager:
+    def __init__(self):
+        self.connections = set()
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.connections.add(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.connections.discard(websocket)
+
+    async def broadcast(self, payload):
+        disconnected = []
+        for websocket in self.connections:
+            try:
+                await websocket.send_json(payload)
+            except Exception:
+                disconnected.append(websocket)
+        for websocket in disconnected:
+            self.disconnect(websocket)
+
+
+signal_manager = SignalConnectionManager()
 
 app.add_middleware(
     CORSMiddleware,
@@ -71,8 +98,10 @@ def _enrich_stock(ticker: str, period: str = "3mo") -> dict | None:
         "change_percent": round(chg_pct, 2),
         "volume": int(_safe_float(latest.get("Volume", 0))),
         "market_cap": info.get("market_cap", ""),
+        "market_cap_value": _safe_float(info.get("market_cap_value")),
         "pe": _safe_float(info.get("pe")),
         "pbv": _safe_float(info.get("pbv")),
+        "dividend_yield": _safe_float(info.get("dividend_yield")),
         "rsi": _safe_float(latest.get("rsi")),
         "macd": "bullish" if _safe_float(latest.get("macd", 0)) > _safe_float(latest.get("macd_signal", 0)) else "bearish",
         "signals": [s["type"] for s in signals],
@@ -95,12 +124,35 @@ def cache_clear():
     clear_cache()
     return {"status": "cleared"}
 
+@app.websocket("/ws/signals")
+async def signals_websocket(websocket: WebSocket):
+    await signal_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        signal_manager.disconnect(websocket)
+
+@app.post("/api/signals/broadcast")
+async def broadcast_signals(payload: dict):
+    signals = payload.get("signals", payload.get("data", []))
+    await signal_manager.broadcast({"type": "signals", "data": signals})
+    return {"status": "broadcast", "clients": len(signal_manager.connections)}
+
 @app.get("/api/stocks")
-def list_stocks():
+def list_stocks(search: str = Query(None)):
     def _get(t):
         return get_stock_info(t)
     results = [info for info in run_parallel(_get, IDX_TICKERS) if info.get("name")]
+    if search:
+        term = search.strip().lower()
+        results = [info for info in results if term in info.get("code", "").lower() or term in info.get("name", "").lower()]
     return {"data": results, "total": len(results)}
+
+@app.get("/api/stocks/codes")
+def list_stock_codes():
+    codes = [t.replace(".JK", "") for t in IDX_TICKERS]
+    return {"data": codes}
 
 @app.get("/api/stocks/prices")
 def stocks_prices(codes: str = Query("")):
@@ -162,6 +214,28 @@ def stock_history(code: str, range: str = Query("6mo")):
         })
     return {"data": rows, "total": len(rows)}
 
+@app.get("/api/stocks/{code}/rating")
+def stock_rating(code: str):
+    enriched = _enrich_stock(f"{code.upper()}.JK", "6mo")
+    signals = enriched.get("signals_full", []) if enriched else []
+    buy_count = sum(1 for signal in signals if signal.get("direction") == "buy")
+    sell_count = sum(1 for signal in signals if signal.get("direction") == "sell")
+    neutral_count = len(signals) - buy_count - sell_count
+    difference = buy_count - sell_count
+    if difference >= 3:
+        rating = "Strong Buy"
+    elif difference >= 2:
+        rating = "Buy"
+    elif difference <= -3:
+        rating = "Strong Sell"
+    elif difference <= -2:
+        rating = "Sell"
+    else:
+        rating = "Neutral"
+    total = len(signals)
+    confidence = round(max(buy_count, sell_count, neutral_count) / total * 100, 1) if total else 0
+    return {"data": {"rating": rating, "buy_count": buy_count, "sell_count": sell_count, "neutral_count": neutral_count, "total_signals": total, "confidence": confidence}}
+
 @app.get("/api/market/overview")
 def market_overview():
     index_df = fetch_stock_history(IHSG_TICKER, "1mo")
@@ -204,11 +278,142 @@ def market_overview():
         }
     }
 
+@app.get("/api/market/heatmap")
+def market_heatmap():
+    enriched = [e for e in run_parallel(lambda t: _enrich_stock(t, "1mo"), IDX_TICKERS) if e]
+    grouped = {}
+    for item in enriched:
+        sector = item.get("sector") or "Others"
+        grouped.setdefault(sector, []).append(item)
+
+    data = []
+    for sector, items in grouped.items():
+        tickers = [{
+            "code": item["code"],
+            "name": item["name"],
+            "price": item["price"],
+            "change_percent": item["change_percent"],
+            "market_cap": item["market_cap_value"],
+        } for item in items]
+        data.append({
+            "sector": sector,
+            "avg_change": round(sum(item["change_percent"] for item in items) / len(items), 2),
+            "market_cap": sum(item["market_cap_value"] for item in items),
+            "count": len(items),
+            "tickers": tickers,
+        })
+
+    data.sort(key=lambda item: item["market_cap"], reverse=True)
+    return {"data": data}
+
+@app.get("/api/market/sectors")
+def market_sectors():
+    enriched = [e for e in run_parallel(lambda t: _enrich_stock(t, "1mo"), IDX_TICKERS) if e]
+    grouped = {}
+    for item in enriched:
+        sector = item.get("sector") or "Others"
+        grouped.setdefault(sector, []).append(item)
+
+    data = []
+    for sector, items in grouped.items():
+        top_gainer = max(items, key=lambda item: item["change_percent"])
+        top_loser = min(items, key=lambda item: item["change_percent"])
+        data.append({
+            "sector": sector,
+            "avg_change": round(sum(item["change_percent"] for item in items) / len(items), 2),
+            "advancers": sum(1 for item in items if item["change_percent"] > 0),
+            "decliners": sum(1 for item in items if item["change_percent"] < 0),
+            "top_gainer": {"code": top_gainer["code"], "change": top_gainer["change_percent"]},
+            "top_loser": {"code": top_loser["code"], "change": top_loser["change_percent"]},
+            "total_market_cap": sum(item["market_cap_value"] for item in items),
+        })
+
+    data.sort(key=lambda item: item["avg_change"], reverse=True)
+    return {"data": data}
+
+@app.get("/api/calendar")
+def market_calendar(
+    type: str = Query(None),
+    from_date: date = Query(None, alias="from"),
+    to_date: date = Query(None, alias="to"),
+):
+    from .scripts.fetch_calendar import CALENDAR_CACHE_KEY, CALENDAR_TTL, fetch_calendar
+
+    events = get_cached(CALENDAR_CACHE_KEY, CALENDAR_TTL)
+    if events is None:
+        events = fetch_calendar(365)
+    start = from_date or date.today()
+    end = to_date or start + timedelta(days=365)
+    filtered = [event for event in events if start.isoformat() <= event["date"] <= end.isoformat()]
+    if type:
+        filtered = [event for event in filtered if event["type"] == type]
+    return {"data": filtered}
+
+@app.get("/api/dividends")
+def list_dividends(
+    code: str = Query(None),
+    from_date: date = Query(None, alias="from"),
+    to_date: date = Query(None, alias="to"),
+    upcoming: bool = Query(False),
+    days: int = Query(30, ge=1, le=365),
+):
+    start = from_date or (date.today() if upcoming else date.today() - timedelta(days=365))
+    end = to_date or (date.today() + timedelta(days=days) if upcoming else date.today() + timedelta(days=365))
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        try:
+            query = "SELECT code, name, ex_date, payment_date, amount_per_share, ratio, type FROM dividends WHERE ex_date BETWEEN %s AND %s"
+            params = [start, end]
+            if code:
+                query += " AND code = %s"
+                params.append(code.upper())
+            query += " ORDER BY ex_date"
+            with psycopg2.connect(database_url) as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(query, params)
+                    rows = cursor.fetchall()
+            return {"data": [{"code": row[0], "name": row[1], "ex_date": row[2].isoformat(), "payment_date": row[3].isoformat() if row[3] else None, "amount": _safe_float(row[4], None), "ratio": row[5], "type": row[6]} for row in rows]}
+        except Exception:
+            pass
+    from .scripts.fetch_calendar import CALENDAR_CACHE_KEY, CALENDAR_TTL, fetch_calendar
+    events = get_cached(CALENDAR_CACHE_KEY, CALENDAR_TTL) or fetch_calendar(365)
+    data = [{"code": event["code"], "name": event["name"], "ex_date": event["date"], "payment_date": None, "amount": event.get("amount"), "ratio": event.get("ratio"), "type": "cash" if event["type"] == "dividend" else event["type"]} for event in events if event["type"] in ("dividend", "split") and start.isoformat() <= event["date"] <= end.isoformat() and (not code or event["code"] == code.upper())]
+    return {"data": data}
+
+@app.get("/api/dividends/notifications")
+def dividend_notifications(days: int = Query(3, ge=1, le=30)):
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        return {"data": []}
+    try:
+        with psycopg2.connect(database_url) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT DISTINCT u.telegram_id, d.code, d.name, d.ex_date, d.amount_per_share
+                    FROM users u
+                    JOIN (
+                      SELECT user_id, stock_code AS code FROM watchlists
+                      UNION SELECT user_id, code FROM positions WHERE status = 'open'
+                    ) holdings ON holdings.user_id = u.id::text OR holdings.user_id = u.email
+                    JOIN dividends d ON d.code = holdings.code
+                    WHERE u.telegram_id IS NOT NULL AND d.ex_date BETWEEN CURRENT_DATE AND CURRENT_DATE + %s
+                    ORDER BY d.ex_date
+                """, (days,))
+                rows = cursor.fetchall()
+        return {"data": [{"telegram_id": row[0], "code": row[1], "name": row[2], "ex_date": row[3].isoformat(), "amount": _safe_float(row[4], None)} for row in rows]}
+    except Exception:
+        return {"data": []}
+
 @app.get("/api/screener")
 def screener(
     sector: str = Query(None),
     min_price: float = Query(None),
     max_price: float = Query(None),
+    min_pe: float = Query(None),
+    max_pe: float = Query(None),
+    min_pbv: float = Query(None),
+    max_pbv: float = Query(None),
+    min_dividend_yield: float = Query(None),
     rsi_filter: str = Query(None),
     macd_filter: str = Query(None),
     signal_filter: str = Query(None),
@@ -225,6 +430,16 @@ def screener(
         if min_price is not None and (item["price"] is None or item["price"] < min_price):
             continue
         if max_price is not None and (item["price"] is None or item["price"] > max_price):
+            continue
+        if min_pe is not None and (item["pe"] is None or item["pe"] < min_pe):
+            continue
+        if max_pe is not None and (item["pe"] is None or item["pe"] > max_pe):
+            continue
+        if min_pbv is not None and (item["pbv"] is None or item["pbv"] < min_pbv):
+            continue
+        if max_pbv is not None and (item["pbv"] is None or item["pbv"] > max_pbv):
+            continue
+        if min_dividend_yield is not None and (item.get("dividend_yield") is None or item["dividend_yield"] < min_dividend_yield):
             continue
         if rsi_filter == "oversold" and (item["rsi"] is None or item["rsi"] >= 30):
             continue

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { fetchScreener, fetchSignals, type StockItem, type SignalItem } from "@/lib/api";
-import { formatPrice, formatPercent, formatVolume, signalColor, signalLabel } from "@/lib/utils";
+import { formatPrice, formatPercent, signalColor, signalLabel } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 
 export default function Dashboard() {
@@ -23,7 +24,50 @@ export default function Dashboard() {
     load();
   }, []);
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><div className="animate-pulse text-white/40">Loading...</div></div>;
+  if (loading) return (
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <div className="space-y-2">
+        <Skeleton className="h-9 w-64" />
+        <Skeleton className="h-4 w-96" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-32" />
+          <div className="rounded-xl border border-white/10 divide-y divide-white/5">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-14" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-6 w-32" />
+          <div className="rounded-xl border border-white/10 divide-y divide-white/5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-14" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <div className="text-right space-y-1">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-3 w-14 ml-auto" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">

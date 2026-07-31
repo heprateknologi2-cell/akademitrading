@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
 
 const PLANS = [
   { id: "free", name: "Free", price: 0, period: "", features: ["Screener dasar", "Sinyal H-3", "Watchlist 5 saham"], popular: false },
@@ -10,7 +9,6 @@ const PLANS = [
 ];
 
 export default function SubscriptionPage() {
-  const { data: session } = useSession();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
 

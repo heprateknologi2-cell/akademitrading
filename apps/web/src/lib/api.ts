@@ -17,6 +17,7 @@ export interface StockItem {
   market_cap: string;
   pe: number;
   pbv: number;
+  dividend_yield: number;
   rsi: number;
   macd: string;
   signals: string[];
@@ -56,8 +57,15 @@ export async function fetchStockDetail(code: string): Promise<{ data: unknown }>
   return jfetch(`/api/stocks/${encodeURIComponent(code)}`);
 }
 
-export async function fetchStocks(): Promise<{ data: unknown }> {
-  return jfetch("/api/stocks");
+export interface StockSearchItem {
+  code: string;
+  name: string;
+  sector?: string;
+}
+
+export async function fetchStocks(search?: string): Promise<{ data: StockSearchItem[] }> {
+  const query = search ? `?search=${encodeURIComponent(search)}` : "";
+  return jfetch(`/api/stocks${query}`);
 }
 
 export interface WatchlistItem {

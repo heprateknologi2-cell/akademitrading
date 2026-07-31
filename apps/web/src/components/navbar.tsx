@@ -8,7 +8,12 @@ import { useSession, signOut } from "next-auth/react";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
   { href: "/screener", label: "Screener" },
+  { href: "/heatmap", label: "Heatmap" },
+  { href: "/sectors", label: "Sektor" },
+  { href: "/calendar", label: "Kalender" },
+  { href: "/dividends", label: "Dividen" },
   { href: "/signals", label: "Signals" },
+  { href: "/ideas", label: "Ide" },
   { href: "/portfolio", label: "Portfolio" },
   { href: "/backtest", label: "Backtest" },
 ];
@@ -19,7 +24,7 @@ export function Navbar() {
 
   return (
     <nav className="border-b border-white/10 bg-[#020817]/80 backdrop-blur-md sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 min-h-14 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2">
           <Image
             src="/logo.png"
@@ -32,7 +37,7 @@ export function Navbar() {
           <span className="font-bold text-lg tracking-tight">akademitrading</span>
         </Link>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 overflow-x-auto py-3">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
             return (

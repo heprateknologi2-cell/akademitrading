@@ -56,3 +56,43 @@ export const positions = pgTable("positions", {
   userStatusIdx: index("pos_user_status_idx").on(table.userId, table.status),
   userCodeIdx: index("pos_user_code_idx").on(table.userId, table.code),
 }));
+
+export const dividends = pgTable("dividends", {
+  id: serial("id").primaryKey(),
+  code: varchar("code", { length: 10 }).notNull(),
+  name: varchar("name", { length: 100 }),
+  exDate: timestamp("ex_date").notNull(),
+  recordDate: timestamp("record_date"),
+  paymentDate: timestamp("payment_date"),
+  amountPerShare: decimal("amount_per_share", { precision: 14, scale: 2 }),
+  ratio: varchar("ratio", { length: 20 }),
+  type: varchar("type", { length: 20 }).default("cash"),
+  source: varchar("source", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  codeDateIdx: uniqueIndex("div_code_date_idx").on(table.code, table.exDate),
+}));
+
+export const ideas = pgTable("ideas", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  code: varchar("code", { length: 10 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  body: text("body").notNull(),
+  direction: varchar("direction", { length: 10 }),
+  chartThumb: text("chart_thumb"),
+  likes: integer("likes").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  codeIdx: index("ideas_code_idx").on(table.code),
+  createdAtIdx: index("ideas_created_idx").on(table.createdAt),
+}));
+
+export const ideaLikes = pgTable("idea_likes", {
+  id: serial("id").primaryKey(),
+  ideaId: integer("idea_id").notNull(),
+  userId: varchar("user_id", { length: 255 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  ideaUserIdx: uniqueIndex("idea_user_idx").on(table.ideaId, table.userId),
+}));

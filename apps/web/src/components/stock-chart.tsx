@@ -6,10 +6,13 @@ import type { Candle } from "@/lib/api";
 
 interface StockChartProps {
   candles: Candle[];
+  compareCandles?: Candle[];
+  compareLabel?: string;
+  normalize?: boolean;
   height?: number;
 }
 
-export function StockChart({ candles, height = 420 }: StockChartProps) {
+export function StockChart({ candles, compareCandles, compareLabel, normalize = false, height = 420 }: StockChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -24,17 +27,19 @@ export function StockChart({ candles, height = 420 }: StockChartProps) {
       const { createChart, CandlestickSeries, LineSeries, ColorType } = await import("lightweight-charts");
       if (cancelled) return;
 
+      const primaryBase = normalize ? candles[0]?.close || 1 : 1;
+      const normalizeValue = (value: number) => normalize ? value / primaryBase * 100 : value;
       const candlestickData = candles.map(c => ({
         time: c.date.slice(0, 10) as Time,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
+        open: normalizeValue(c.open),
+        high: normalizeValue(c.high),
+        low: normalizeValue(c.low),
+        close: normalizeValue(c.close),
       }));
       const smaData = (key: "sma_20" | "sma_50" | "sma_200") =>
-        candles.filter(c => c[key] != null).map(c => ({ time: c.date.slice(0, 10) as Time, value: c[key] as number }));
+        candles.filter(c => c[key] != null).map(c => ({ time: c.date.slice(0, 10) as Time, value: normalizeValue(c[key] as number) }));
       const bbData = (key: "bb_upper" | "bb_lower") =>
-        candles.filter(c => c[key] != null).map(c => ({ time: c.date.slice(0, 10) as Time, value: c[key] as number }));
+        candles.filter(c => c[key] != null).map(c => ({ time: c.date.slice(0, 10) as Time, value: normalizeValue(c[key] as number) }));
 
       chart = createChart(container, {
         height,
@@ -55,7 +60,7 @@ export function StockChart({ candles, height = 420 }: StockChartProps) {
         rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
         timeScale: { borderColor: "rgba(255,255,255,0.08)", rightOffset: 3, barSpacing: 8 },
         localization: {
-          priceFormatter: (p: number) => `Rp${p.toLocaleString("id-ID")}`,
+          priceFormatter: (p: number) => normalize ? `${p.toFixed(2)}` : `Rp${p.toLocaleString("id-ID")}`,
         },
       });
 
@@ -81,6 +86,20 @@ export function StockChart({ candles, height = 420 }: StockChartProps) {
       if (bbData("bb_upper").length > 0) bbUpper.setData(bbData("bb_upper"));
       if (bbData("bb_lower").length > 0) bbLower.setData(bbData("bb_lower"));
 
+      if (compareCandles?.length) {
+        const compareBase = compareCandles[0].close || 1;
+        const compareSeries = chart.addSeries(LineSeries, {
+          color: "#f59e0b",
+          lineWidth: 2,
+          priceLineVisible: false,
+          title: compareLabel || "Pembanding",
+        });
+        compareSeries.setData(compareCandles.map((c) => ({
+          time: c.date.slice(0, 10) as Time,
+          value: normalize ? c.close / compareBase * 100 : c.close,
+        })));
+      }
+
       chart.timeScale().fitContent();
 
       resizeObserver = new ResizeObserver(() => {
@@ -96,7 +115,7 @@ export function StockChart({ candles, height = 420 }: StockChartProps) {
       resizeObserver?.disconnect();
       chart?.remove();
     };
-  }, [candles, height]);
+  }, [candles, compareCandles, compareLabel, normalize, height]);
 
   if (candles.length === 0) {
     return <div className="flex items-center justify-center h-64 text-white/40 text-sm">Data historis tidak tersedia</div>;

@@ -69,6 +69,7 @@ def get_stock_info(ticker: str) -> dict:
             "name": info.get("longName", ""),
             "sector": _map_sector(info.get("sector", "")),
             "market_cap": _categorize_market_cap(info.get("marketCap", 0)),
+            "market_cap_value": info.get("marketCap", 0),
             "total_shares": info.get("sharesOutstanding", 0),
             "pe": info.get("trailingPE"),
             "pbv": info.get("priceToBook"),
