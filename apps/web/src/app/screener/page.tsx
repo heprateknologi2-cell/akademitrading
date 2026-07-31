@@ -230,16 +230,16 @@ function ScreenerContent() {
         <label className="group bg-[#0d1523] p-4 transition hover:bg-[#111b2b]">
           <span className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"><Building2 size={13} className="text-emerald-400/70" /> Sektor</span>
         <select value={sector} onChange={e => { setSector(e.target.value); setPage(1); }}
-          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none focus:ring-0">
-          <option value="">Semua Sektor</option>
+          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none [color-scheme:dark] focus:ring-0 [&>option]:bg-slate-900 [&>option]:text-slate-100">
+          <option value="">Pilih sektor</option>
           {SECTORS.filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
         </select></label>
 
         <label className="group bg-[#0d1523] p-4 transition hover:bg-[#111b2b]">
           <span className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"><Activity size={13} className="text-sky-400/70" /> RSI</span>
         <select value={rsiFilter} onChange={e => { setRsiFilter(e.target.value); setPage(1); }}
-          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none focus:ring-0">
-          <option value="">Semua kondisi</option>
+          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none [color-scheme:dark] focus:ring-0 [&>option]:bg-slate-900 [&>option]:text-slate-100">
+          <option value="">Semua level RSI</option>
           <option value="oversold">Oversold (&lt;30)</option>
           <option value="overbought">Overbought (&gt;70)</option>
         </select></label>
@@ -247,8 +247,8 @@ function ScreenerContent() {
         <label className="group bg-[#0d1523] p-4 transition hover:bg-[#111b2b]">
           <span className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"><TrendingUp size={13} className="text-violet-400/70" /> MACD</span>
         <select value={macdFilter} onChange={e => { setMacdFilter(e.target.value); setPage(1); }}
-          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none focus:ring-0">
-          <option value="">Semua kondisi</option>
+          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none [color-scheme:dark] focus:ring-0 [&>option]:bg-slate-900 [&>option]:text-slate-100">
+          <option value="">Semua tren MACD</option>
           <option value="bullish">Bullish</option>
           <option value="bearish">Bearish</option>
         </select></label>
@@ -256,8 +256,8 @@ function ScreenerContent() {
         <label className="group bg-[#0d1523] p-4 transition hover:bg-[#111b2b]">
           <span className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"><Sparkles size={13} className="text-amber-400/70" /> Sinyal</span>
         <select value={signalFilter} onChange={e => { setSignalFilter(e.target.value); setPage(1); }}
-          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none focus:ring-0">
-          <option value="">Semua sinyal</option>
+          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none [color-scheme:dark] focus:ring-0 [&>option]:bg-slate-900 [&>option]:text-slate-100">
+          <option value="">Semua rekomendasi</option>
           <option value="golden_cross">Golden Cross</option>
           <option value="death_cross">Death Cross</option>
           <option value="rsi_oversold">RSI Oversold</option>
