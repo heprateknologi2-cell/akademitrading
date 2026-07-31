@@ -21,6 +21,7 @@ const TOOL_ITEMS = [
   { href: "/calendar", label: "Kalender" },
   { href: "/dividends", label: "Dividen" },
   { href: "/backtest", label: "Backtest" },
+  { href: "/education", label: "Glosarium" },
 ];
 
 export function Navbar() {

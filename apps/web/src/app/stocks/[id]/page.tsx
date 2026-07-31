@@ -25,6 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Link from "next/link";
+import { TermHint } from "@/components/term-hint";
 
 const RANGES = [
   { value: "1mo", label: "1B" },
@@ -61,6 +62,10 @@ interface StockDetail {
   market_cap?: string;
   pe?: number;
   pbv?: number;
+  eps?: number;
+  roe?: number;
+  der?: number;
+  dividend_yield?: number;
   volume?: number;
   open?: number;
   high?: number;
@@ -380,22 +385,32 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="font-semibold">Ringkasan Fundamental</h2>
+            <p className="mt-1 text-xs text-white/40">Bandingkan rasio dengan emiten sejenis dan riwayat perusahaan.</p>
+          </div>
+          <Link href="/education#fundamental" className="text-xs text-emerald-400 hover:underline">Buka glosarium</Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Market Cap", value: data.market_cap },
-          { label: "PE Ratio", value: data.pe?.toFixed(1) ?? "-" },
-          { label: "PBV", value: data.pbv?.toFixed(2) ?? "-" },
-          { label: "Volume", value: data.volume?.toLocaleString() ?? "-" },
-          { label: "Open", value: data.open ? formatPrice(data.open) : "-" },
-          { label: "High", value: data.high ? formatPrice(data.high) : "-" },
-          { label: "Low", value: data.low ? formatPrice(data.low) : "-" },
+          { term: "Market Cap", label: "Market Cap", value: data.market_cap || "-" },
+          { term: "PER", label: "PER", value: data.pe ? `${data.pe.toFixed(1)}x` : "-" },
+          { term: "PBV", label: "PBV", value: data.pbv ? `${data.pbv.toFixed(2)}x` : "-" },
+          { term: "EPS", label: "EPS", value: data.eps ? formatPrice(data.eps) : "-" },
+          { term: "ROE", label: "ROE", value: data.roe ? `${data.roe.toFixed(2)}%` : "-" },
+          { term: "DER", label: "DER", value: data.der ? `${data.der.toFixed(2)}x` : "-" },
+          { term: "Dividend Yield", label: "Dividend Yield", value: data.dividend_yield ? `${(data.dividend_yield * 100).toFixed(2)}%` : "-" },
           { label: "Composite Score", value: data.composite_score?.toFixed(0) ?? "-" },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-white/10 bg-white/5 p-3">
-            <div className="text-xs text-white/40">{item.label}</div>
+            <div className="text-xs text-white/40">{item.term ? <TermHint term={item.term} label={item.label} /> : item.label}</div>
             <div className="font-mono text-sm mt-1">{item.value}</div>
           </div>
         ))}
+        </div>
+        <p className="text-[11px] leading-relaxed text-white/30">Data fundamental dapat berasal dari laporan periode berbeda dan tidak selalu tersedia. Angka bukan rekomendasi beli atau jual.</p>
       </div>
 
       {data.signals && data.signals.length > 0 && (
@@ -438,7 +453,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
               { label: "ATR", value: data.indicators.atr ? formatPrice(data.indicators.atr) : "-" },
             ].map((item) => (
               <div key={item.label} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <div className="text-xs text-white/40">{item.label}</div>
+                <div className="text-xs text-white/40"><TermHint term={item.label} /></div>
                 <div className={`font-mono text-sm mt-1 ${item.color || ""}`}>{typeof item.value === "number" ? item.value.toFixed(1) : item.value ?? "-"}</div>
               </div>
             ))}
