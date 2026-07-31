@@ -50,13 +50,14 @@ def detect_signals(df: pd.DataFrame) -> list[dict]:
     latest = df.iloc[-1]
     prev = df.iloc[-2] if len(df) > 1 else latest
 
-    if pd.notna(latest.get("rsi")):
-        if latest["rsi"] < 30:
+    rsi = latest.get("rsi")
+    if pd.notna(rsi) and 0 < rsi < 100:
+        if rsi < 30:
             signals.append({"type": "rsi_oversold", "direction": "buy", "strength": 2, "score": 85.0,
-                          "description": f"RSI {latest['rsi']:.1f} — Oversold, potensi reversal naik"})
-        elif latest["rsi"] > 70:
+                          "description": f"RSI {rsi:.1f} — Oversold, potensi reversal naik"})
+        elif rsi > 70:
             signals.append({"type": "rsi_overbought", "direction": "sell", "strength": 2, "score": 75.0,
-                          "description": f"RSI {latest['rsi']:.1f} — Overbought, waspada koreksi"})
+                          "description": f"RSI {rsi:.1f} — Overbought, waspada koreksi"})
 
     if pd.notna(latest.get("sma_20")) and pd.notna(latest.get("sma_50")):
         prev_golden = prev.get("sma_20", 0) <= prev.get("sma_50", 0)
