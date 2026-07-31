@@ -137,7 +137,7 @@ export default function SignalsPage() {
         </select>
         <label className="sr-only" htmlFor="score">Skor minimum</label>
         <select id="score" value={minScore} onChange={(event) => setMinScore(Number(event.target.value))} className="h-11 rounded-lg border border-white/15 bg-slate-900 px-3 text-sm">
-          <option value="0">Semua skor</option><option value="60">Skor ≥ 60</option><option value="80">Skor ≥ 80</option>
+          <option value="0">Semua skor</option><option value="60">Watchlist ≥ 60</option><option value="75">Kandidat utama ≥ 75</option>
         </select>
         <label className="sr-only" htmlFor="sort">Urutkan sinyal</label>
         <select id="sort" value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="h-11 rounded-lg border border-white/15 bg-slate-900 px-3 text-sm">
@@ -154,18 +154,19 @@ export default function SignalsPage() {
       <div className="mt-5 rounded-2xl border border-dashed border-white/15 p-10 text-center"><SlidersHorizontal className="mx-auto size-8 text-white/35" /><h3 className="mt-4 font-semibold">Tidak ada sinyal yang cocok</h3><p className="mt-2 text-sm text-white/50">Reset filter atau kurangi batas skor minimum.</p><Button variant="outline" className="mt-5 h-11" onClick={() => { setQuery(""); setDirection("all"); setMinScore(0); }}>Reset filter</Button></div>
       : <div className="mt-5 grid gap-4 lg:grid-cols-2">{displayed.map((signal) => {
         const kind = normalizedDirection(signal); const config = directionStyle[kind]; const DirectionIcon = config.icon;
-        const estimatedStop = signal.price * (kind === "bearish" ? 1.03 : 0.97);
-        const estimatedTarget = signal.price * (kind === "bearish" ? 0.94 : 1.06);
+        const estimatedStop = signal.stop_loss ?? signal.price * (kind === "bearish" ? 1.03 : 0.97);
+        const estimatedTarget = signal.take_profit ?? signal.price * (kind === "bearish" ? 0.94 : 1.06);
         return <article key={`${signal.code}-${signal.signalType}-${signal.description}`} className="group rounded-2xl border border-white/10 bg-white/[0.025] p-5 transition hover:border-white/20">
           <div className="flex items-start justify-between gap-4"><div><Link href={`/stocks/${signal.code}`} className="text-xl font-semibold hover:text-emerald-300">{signal.code}</Link><p className="mt-1 line-clamp-1 text-sm text-white/45">{signal.name}</p></div><div className="text-right"><p className="font-mono text-lg font-semibold">{formatPrice(signal.price)}</p><p className={`font-mono text-sm ${signal.change_percent >= 0 ? "text-emerald-300" : "text-red-300"}`}>{formatPercent(signal.change_percent)}</p></div></div>
-          <div className="mt-4 flex flex-wrap gap-2"><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${config.className}`}><DirectionIcon className="size-3.5" />{config.label}</span><span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/25 bg-sky-400/10 px-2.5 py-1 text-xs font-medium text-sky-200"><CheckCircle2 className="size-3.5" />STATUS BELUM TERSEDIA</span><span className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-white/60">Skor {signal.score}</span></div>
+          <div className="mt-4 flex flex-wrap gap-2"><span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-bold ${config.className}`}><DirectionIcon className="size-3.5" />{config.label}</span><span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/25 bg-sky-400/10 px-2.5 py-1 text-xs font-medium text-sky-200"><CheckCircle2 className="size-3.5" />{signal.category === "primary" ? "KANDIDAT UTAMA" : "WATCHLIST"}</span><span className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-white/60">Confluence {signal.score}/100</span></div>
           <div className="mt-5"><h3 className="font-semibold">{signalLabel(signal.signalType)}</h3><p className="mt-2 text-sm leading-6 text-white/60">{signal.description}</p><p className="mt-2 text-sm leading-6 text-white/80">{impactText(kind)}</p></div>
           <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl border border-white/[0.07] bg-black/20 p-4 text-sm">
             <div><dt className="text-xs text-white/40">Timeframe</dt><dd className="mt-1">Belum tersedia</dd></div><div><dt className="text-xs text-white/40">Waktu terbit</dt><dd className="mt-1">Belum tersedia</dd></div>
             <div><dt className="text-xs text-white/40">Harga sinyal</dt><dd className="mt-1">Belum tersedia</dd></div><div><dt className="text-xs text-white/40">Kesegaran</dt><dd className="mt-1">Perlu verifikasi provider</dd></div>
           </dl>
+          {signal.components && <div className="mt-4 grid grid-cols-3 gap-2 text-xs text-white/60">{Object.entries(signal.components).map(([name, value]) => <div key={name} className="rounded-lg border border-white/[0.07] p-2"><span className="capitalize">{name.replace("_", " ")}</span><strong className="mt-1 block text-white">{value}</strong></div>)}</div>}
           <div className="mt-5 grid grid-cols-3 gap-2 text-sm"><div><p className="text-xs text-white/40">Trigger</p><p className="mt-1">Tunggu konfirmasi</p></div><div><p className="text-xs text-white/40">Invalidasi*</p><p className="mt-1 font-mono">{formatPrice(estimatedStop)}</p></div><div><p className="text-xs text-white/40">Target edukatif*</p><p className="mt-1 font-mono">{formatPrice(estimatedTarget)}</p></div></div>
-          <p className="mt-3 text-xs text-white/35">*Estimasi ilustratif ±3%/6%, bukan level analisis terverifikasi.</p>
+          <p className="mt-3 text-xs text-white/35">*Level berbasis ATR dengan rasio risiko/imbal hasil 1:2; tetap verifikasi struktur harga.</p>
           <div className="mt-5 flex gap-2 border-t border-white/[0.07] pt-4"><Button variant="outline" className="h-11 flex-1" render={<Link href={`/stocks/${signal.code}`} />}><BarChart3 /> Buka chart</Button><Button variant="ghost" size="icon-lg" aria-label={`Simpan ${signal.code}`}><Bookmark /></Button><Button variant="ghost" size="icon-lg" aria-label={`Buat alert ${signal.code}`}><Bell /></Button></div>
         </article>;
       })}</div>}

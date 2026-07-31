@@ -9,7 +9,7 @@ import psycopg2
 
 from .fetcher import IDX_TICKERS, IHSG_TICKER, fetch_stock_history, get_stock_info
 from .indicators import calculate_all_indicators, detect_signals
-from .signals import compute_composite_score, get_composite_direction
+from .signals import compute_composite_score, compute_confluence_score, get_composite_direction
 from .cache import run_parallel, clear_cache, cache_ttl_status, get_cached
 
 
@@ -76,7 +76,7 @@ def _safe_float(val, default=0.0):
         return default
     return f
 
-def _enrich_stock(ticker: str, period: str = "3mo") -> dict | None:
+def _enrich_stock(ticker: str, period: str = "3mo", benchmark_return_20: float = 0.0) -> dict | None:
     code = ticker.replace(".JK", "")
     info = get_stock_info(ticker)
     df = fetch_stock_history(ticker, period)
@@ -90,24 +90,38 @@ def _enrich_stock(ticker: str, period: str = "3mo") -> dict | None:
     if len(df) > 1 and df.iloc[-2].get("Close", 0):
         chg_pct = _safe_float((latest["Close"] - df.iloc[-2]["Close"]) / df.iloc[-2]["Close"] * 100)
 
+    recent_volume = df["Volume"].tail(20) if "Volume" in df.columns else []
+    avg_volume_20 = int(_safe_float(recent_volume.mean())) if len(recent_volume) else 0
+    price = _safe_float(latest.get("Close"))
+    atr = _safe_float(latest.get("atr"))
+    atr_percent = round((atr / price * 100), 2) if price > 0 else 0.0
+    confluence = compute_confluence_score(df, signals, benchmark_return_20)
+
     return {
         "code": code,
         "name": info.get("name", ""),
         "sector": info.get("sector", ""),
-        "price": _safe_float(latest.get("Close")),
+        "price": price,
         "change_percent": round(chg_pct, 2),
         "volume": int(_safe_float(latest.get("Volume", 0))),
+        "avg_volume_20": avg_volume_20,
+        "avg_value_20": round(avg_volume_20 * price),
         "market_cap": info.get("market_cap", ""),
         "market_cap_value": _safe_float(info.get("market_cap_value")),
         "pe": _safe_float(info.get("pe")),
         "pbv": _safe_float(info.get("pbv")),
         "dividend_yield": _safe_float(info.get("dividend_yield")),
         "rsi": _safe_float(latest.get("rsi")),
+        "atr": atr,
+        "atr_percent": atr_percent,
         "macd": "bullish" if _safe_float(latest.get("macd", 0)) > _safe_float(latest.get("macd_signal", 0)) else "bearish",
         "signals": [s["type"] for s in signals],
         "signals_full": signals,
         "composite_score": compute_composite_score(signals),
         "composite_direction": get_composite_direction(signals),
+        "confluence_score": confluence["score"],
+        "confluence_category": confluence["category"],
+        "confluence_components": confluence["components"],
         "latest": latest,
     }
 
@@ -406,6 +420,7 @@ def dividend_notifications(days: int = Query(3, ge=1, le=30)):
 
 @app.get("/api/screener")
 def screener(
+    search: str = Query(None),
     sector: str = Query(None),
     min_price: float = Query(None),
     max_price: float = Query(None),
@@ -414,6 +429,8 @@ def screener(
     min_pbv: float = Query(None),
     max_pbv: float = Query(None),
     min_dividend_yield: float = Query(None),
+    min_avg_value: float = Query(None),
+    max_atr_percent: float = Query(None),
     rsi_filter: str = Query(None),
     macd_filter: str = Query(None),
     signal_filter: str = Query(None),
@@ -425,6 +442,8 @@ def screener(
     enriched = [e for e in run_parallel(lambda t: _enrich_stock(t, "3mo"), IDX_TICKERS) if e]
     results = []
     for item in enriched:
+        if search and search.lower() not in f'{item["code"]} {item["name"]}'.lower():
+            continue
         if sector and item["sector"] != sector:
             continue
         if min_price is not None and (item["price"] is None or item["price"] < min_price):
@@ -440,6 +459,10 @@ def screener(
         if max_pbv is not None and (item["pbv"] is None or item["pbv"] > max_pbv):
             continue
         if min_dividend_yield is not None and (item.get("dividend_yield") is None or item["dividend_yield"] < min_dividend_yield):
+            continue
+        if min_avg_value is not None and item.get("avg_value_20", 0) < min_avg_value:
+            continue
+        if max_atr_percent is not None and item.get("atr_percent", 0) > max_atr_percent:
             continue
         if rsi_filter == "oversold" and (item["rsi"] is None or item["rsi"] >= 30):
             continue
@@ -464,9 +487,13 @@ def screener(
 @app.get("/api/signals/today")
 def today_signals():
     results = []
-    for e in [x for x in run_parallel(lambda t: _enrich_stock(t, "3mo"), IDX_TICKERS) if x]:
+    benchmark_return_20 = 0.0
+    benchmark = fetch_stock_history(IHSG_TICKER, "3mo")
+    if benchmark is not None and len(benchmark) >= 21 and benchmark.iloc[-21].get("Close", 0):
+        benchmark_return_20 = (benchmark.iloc[-1]["Close"] / benchmark.iloc[-21]["Close"] - 1) * 100
+    for e in [x for x in run_parallel(lambda t: _enrich_stock(t, "3mo", benchmark_return_20), IDX_TICKERS) if x]:
         signals = e["signals_full"]
-        if not signals:
+        if not signals or e["confluence_category"] == "ignored":
             continue
         for s in signals:
             results.append({
@@ -475,10 +502,16 @@ def today_signals():
                 "signalType": s["type"],
                 "direction": s.get("direction", "neutral"),
                 "strength": s.get("strength", 1),
-                "score": s.get("score", 0),
+                "score": e["confluence_score"],
+                "indicator_score": s.get("score", 0),
+                "category": e["confluence_category"],
+                "components": e["confluence_components"],
                 "description": s.get("description", ""),
                 "price": e["price"],
                 "change_percent": e["change_percent"],
+                "atr": e["atr"],
+                "stop_loss": round(e["price"] + 1.5 * e["atr"], 2) if s.get("direction") == "sell" else round(e["price"] - 1.5 * e["atr"], 2),
+                "take_profit": round(e["price"] - 3 * e["atr"], 2) if s.get("direction") == "sell" else round(e["price"] + 3 * e["atr"], 2),
             })
 
     results.sort(key=lambda x: x.get("score", 0), reverse=True)

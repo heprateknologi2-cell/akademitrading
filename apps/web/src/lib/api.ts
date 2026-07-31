@@ -14,11 +14,15 @@ export interface StockItem {
   price: number;
   change_percent: number;
   volume: number;
+  avg_volume_20: number;
+  avg_value_20: number;
   market_cap: string;
   pe: number;
   pbv: number;
   dividend_yield: number;
   rsi: number;
+  atr: number;
+  atr_percent: number;
   macd: string;
   signals: string[];
   composite_score: number;
@@ -35,6 +39,12 @@ export interface SignalItem {
   description: string;
   price: number;
   change_percent: number;
+  indicator_score?: number;
+  category?: "primary" | "watchlist";
+  components?: Record<"trend" | "momentum" | "setup" | "volume" | "relative_strength" | "liquidity", number>;
+  atr?: number;
+  stop_loss?: number;
+  take_profit?: number;
 }
 
 export interface ScreenerResponse {
