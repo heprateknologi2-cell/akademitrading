@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/navbar";
+import { Footer } from "@/components/footer";
 import { SessionProvider } from "@/components/session-provider";
 
 const geistSans = Geist({
@@ -15,11 +16,31 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Akademitrading — Screener & Signal Saham Indonesia",
+  title: {
+    default: "Akademitrading — Screener & Signal Saham Indonesia",
+    template: "%s — Akademitrading",
+  },
   description: "Screener dan sinyal trading saham Indonesia real-time. Analisis teknikal, fundamental, dan bandarmology.",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Akademitrading" },
   other: { "mobile-web-app-capable": "yes" },
+  openGraph: {
+    title: "Akademitrading — Screener & Signal Saham Indonesia",
+    description: "Screener dan sinyal trading saham Indonesia real-time. Analisis teknikal, fundamental, dan bandarmology.",
+    type: "website",
+    locale: "id_ID",
+    siteName: "akademitrading",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Akademitrading — Screener & Signal Saham Indonesia",
+    description: "Screener dan sinyal trading saham Indonesia real-time.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
 };
 
 export default function RootLayout({
@@ -40,6 +61,7 @@ export default function RootLayout({
         <SessionProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
+          <Footer />
         </SessionProvider>
       </body>
     </html>

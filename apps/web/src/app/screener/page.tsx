@@ -19,6 +19,7 @@ export default function ScreenerPage() {
   const [rsiFilter, setRsiFilter] = useState("");
   const [macdFilter, setMacdFilter] = useState("");
   const [signalFilter, setSignalFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("composite_score");
   const [sortOrder, setSortOrder] = useState("desc");
 
@@ -28,8 +29,9 @@ export default function ScreenerPage() {
     if (rsiFilter) params.rsi_filter = rsiFilter;
     if (macdFilter) params.macd_filter = macdFilter;
     if (signalFilter) params.signal_filter = signalFilter;
+    if (search.trim()) params.search = search.trim();
     return fetchScreener(params);
-  }, [page, sector, rsiFilter, macdFilter, signalFilter, sortBy, sortOrder]);
+  }, [page, sector, rsiFilter, macdFilter, signalFilter, search, sortBy, sortOrder]);
 
   useEffect(() => {
     let active = true;
@@ -44,6 +46,19 @@ export default function ScreenerPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       <h1 className="text-2xl font-bold">Screener Saham</h1>
+
+      <div className="relative">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          placeholder="Cari kode/nama saham..."
+          className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-emerald-500/50"
+        />
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+        </svg>
+      </div>
 
       <div className="flex flex-wrap gap-3 items-center">
         <select value={sector} onChange={e => { setSector(e.target.value); setPage(1); }}

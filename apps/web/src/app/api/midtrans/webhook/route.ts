@@ -2,10 +2,15 @@ import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { db, users, subscriptions } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
+import { rateLimit } from "@/lib/rate-limit";
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
 
 export async function POST(req: Request) {
+  const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+  const limited = rateLimit(`webhook:${ip}`, 100);
+  if (limited) return limited;
+
   try {
     const body = await req.json();
     const { order_id, transaction_status, gross_amount, signature_key, fraud_status } = body;

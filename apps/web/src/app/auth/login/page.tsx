@@ -80,6 +80,13 @@ export default function LoginPage() {
             Lanjut dengan Google
           </button>
         )}
+
+        <p className="text-center text-xs text-white/40">
+          Belum punya akun?{" "}
+          <a href="/auth/register" className="text-emerald-400 hover:text-emerald-300 font-medium">
+            Daftar
+          </a>
+        </p>
       </div>
     </div>
   );

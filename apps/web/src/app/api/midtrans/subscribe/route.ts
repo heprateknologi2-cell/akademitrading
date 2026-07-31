@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { db, users, subscriptions } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { rateLimit } from "@/lib/rate-limit";
 
 const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || "";
 const MIDTRANS_BASE_URL = process.env.MIDTRANS_BASE_URL || "https://app.sandbox.midtrans.com";
@@ -16,6 +17,9 @@ export async function POST(req: Request) {
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const limited = rateLimit(`subscribe:${session.user.id}`, 5);
+  if (limited) return limited;
 
   const { plan } = await req.json();
   const selectedPlan = PLANS[plan];

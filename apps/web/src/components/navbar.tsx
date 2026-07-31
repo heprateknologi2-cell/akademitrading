@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: "/screener", label: "Screener" },
   { href: "/signals", label: "Signals" },
   { href: "/portfolio", label: "Portfolio" },
+  { href: "/backtest", label: "Backtest" },
 ];
 
 export function Navbar() {
@@ -46,7 +47,7 @@ export function Navbar() {
               <Link href="/subscription" className="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-500/30">
                 {session.user.tier === "free" ? "UPGRADE" : "PRO"}
               </Link>
-              <Link href="/dashboard" className="text-sm text-white/60 hover:text-white/90">
+              <Link href="/settings" className="text-sm text-white/60 hover:text-white/90">
                 {session.user.name || session.user.email}
               </Link>
               <button onClick={() => signOut()} className="text-xs text-white/40 hover:text-white/70">
