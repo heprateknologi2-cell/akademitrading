@@ -1,5 +1,27 @@
 import { pgTable, serial, varchar, decimal, text, timestamp, uniqueIndex, index, integer } from "drizzle-orm/pg-core";
 
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).unique(),
+  name: varchar("name", { length: 100 }),
+  telegramId: varchar("telegram_id", { length: 50 }).unique(),
+  tier: varchar("tier", { length: 20 }).default("free"),
+  password: varchar("password", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const subscriptions = pgTable("subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  tier: varchar("tier", { length: 20 }).notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  midtransId: varchar("midtrans_id", { length: 100 }),
+  status: varchar("status", { length: 20 }).default("active"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const watchlists = pgTable("watchlists", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id", { length: 255 }).notNull(),

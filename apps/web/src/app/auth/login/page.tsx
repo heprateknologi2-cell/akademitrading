@@ -7,15 +7,23 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleMagicLink = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await signIn("email", { email, redirect: false });
-    setSent(true);
-    setLoading(false);
+    setError("");
+
+    const res = await signIn("credentials", { email, password, redirect: false });
+    if (res?.error) {
+      setError("Email atau password salah");
+      setLoading(false);
+      return;
+    }
+    router.push("/dashboard");
+    router.refresh();
   };
 
   return (
@@ -26,29 +34,38 @@ export default function LoginPage() {
           <p className="text-sm text-white/60">Akses screener premium & sinyal eksklusif</p>
         </div>
 
-        {sent ? (
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center text-sm text-emerald-400">
-            Cek email {email} untuk link masuk
-          </div>
-        ) : (
-          <form onSubmit={handleMagicLink} className="space-y-4">
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="Masukkan email"
-              required
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-medium rounded-lg px-4 py-3 text-sm transition-colors disabled:opacity-50"
-            >
-              {loading ? "Mengirim..." : "Kirim Magic Link"}
-            </button>
-          </form>
-        )}
+        <form onSubmit={handleLogin} className="space-y-4">
+          {error && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-center text-xs text-red-400">
+              {error}
+            </div>
+          )}
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="Email"
+            required
+            autoComplete="email"
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Password"
+            required
+            autoComplete="current-password"
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-white placeholder-white/30 focus:outline-none focus:border-emerald-500/50"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-black font-medium rounded-lg px-4 py-3 text-sm transition-colors disabled:opacity-50"
+          >
+            {loading ? "Memproses..." : "Masuk"}
+          </button>
+        </form>
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>

@@ -1,10 +1,11 @@
-FROM python:3.11-slim
+FROM node:24-slim
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir python-dotenv requests
+COPY apps/bot/package.json apps/bot/package-lock.json* ./
+RUN npm install --omit=dev
 
 COPY apps/bot/src ./src
-COPY apps/bot/.env.production .env
+COPY apps/bot/tsconfig.json ./
 
-CMD ["python", "src/index.py"]
+CMD ["node", "--experimental-strip-types", "src/index.ts"]

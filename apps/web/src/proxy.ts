@@ -4,18 +4,19 @@ import { NextResponse } from "next/server";
 export default auth((req) => {
   const path = req.nextUrl.pathname;
   const isLoggedIn = !!req.auth?.user;
-  const tier = req.auth?.user?.tier || "free";
 
-  const proRoutes = ["/dashboard", "/subscription"];
-  const isProRoute = proRoutes.some(r => path.startsWith(r));
+  const protectedRoutes = ["/dashboard", "/subscription", "/portfolio"];
+  const isProtected = protectedRoutes.some(r => path.startsWith(r));
 
-  if (isProRoute && !isLoggedIn) {
-    return NextResponse.redirect(new URL("/auth/login", req.url));
+  if (isProtected && !isLoggedIn) {
+    const loginUrl = new URL("/auth/login", req.url);
+    loginUrl.searchParams.set("callbackUrl", path);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/subscription/:path*"],
+  matcher: ["/dashboard/:path*", "/subscription/:path*", "/portfolio/:path*"],
 };
