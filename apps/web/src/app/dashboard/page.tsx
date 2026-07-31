@@ -2,21 +2,36 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
-import { fetchWatchlist, type WatchlistItem } from "@/lib/api";
+import { fetchWatchlist, fetchMarketOverview, type WatchlistItem, type MarketOverview } from "@/lib/api";
+import { formatPrice, formatPercent, formatVolume } from "@/lib/utils";
 import Link from "next/link";
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [market, setMarket] = useState<MarketOverview | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!session?.user) return;
-    fetchWatchlist().then(res => {
-      setWatchlist(res.data || []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [session]);
+    if (status === "loading" || !session?.user) return;
+    let active = true;
+    const load = () => {
+      Promise.all([
+        fetchWatchlist().then(res => res.data || []).catch(() => []),
+        fetchMarketOverview().then(res => res.data || null).catch(() => null),
+      ]).then(([wl, mv]) => {
+        if (!active) return;
+        setWatchlist(wl);
+        setMarket(mv);
+        setLoading(false);
+      });
+    };
+    load();
+    const onVisible = () => { if (document.visibilityState === "visible") load(); };
+    const timer = setInterval(() => { if (document.visibilityState === "visible") load(); }, 60000);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { active = false; clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
+  }, [session, status]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
@@ -47,6 +62,89 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {market && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <div className="text-xs text-white/40 uppercase tracking-wider">IHSG</div>
+            <div className="flex items-baseline gap-3 mt-1">
+              <div className="text-xl font-bold font-mono text-white">{formatPrice(market.ihsg.price)}</div>
+              <div className={`text-sm font-mono ${market.ihsg.change_percent >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                {formatPercent(market.ihsg.change_percent)}
+              </div>
+            </div>
+            <div className="text-xs text-white/40 mt-1">Volume: {formatVolume(market.ihsg.volume)}</div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <div className="text-xs text-white/40 uppercase tracking-wider">Market Breadth</div>
+            <div className="flex items-center gap-4 mt-2">
+              <div className="text-center">
+                <div className="text-lg font-bold text-emerald-400">{market.breadth.advancers}</div>
+                <div className="text-[11px] text-white/40">Naik</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-red-400">{market.breadth.decliners}</div>
+                <div className="text-[11px] text-white/40">Turun</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-bold text-white/60">{market.breadth.unchanged}</div>
+                <div className="text-[11px] text-white/40">Stagnan</div>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-5">
+            <div className="text-xs text-white/40 uppercase tracking-wider">Tercatat</div>
+            <div className="text-lg font-bold mt-1 text-white">{market.breadth.total} saham</div>
+            <div className="text-xs text-white/40 mt-1">
+              Rasio naik/turun: <span className={market.breadth.advancers >= market.breadth.decliners ? "text-emerald-400" : "text-red-400"}>
+                {(market.breadth.advancers / Math.max(market.breadth.decliners, 1)).toFixed(2)}x
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {market && market.top_gainers.length > 0 && (
+          <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="font-semibold">Top Gainers</h2>
+              <Link href="/screener?sort_by=change_percent&sort_order=desc" className="text-xs text-emerald-400 hover:text-emerald-300">Screener</Link>
+            </div>
+            <div className="divide-y divide-white/5">
+              {market.top_gainers.slice(0, 5).map((s) => (
+                <Link key={s.code} href={`/stocks/${s.code}`} className="flex items-center justify-between px-4 py-2.5 hover:bg-white/5 transition-colors">
+                  <div className="font-medium text-sm">{s.code}</div>
+                  <div className="text-right">
+                    <div className="font-mono text-sm">{formatPrice(s.price)}</div>
+                    <div className="text-xs font-mono text-emerald-400">{formatPercent(s.change_percent)}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {market && market.top_losers.length > 0 && (
+          <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <h2 className="font-semibold">Top Losers</h2>
+              <Link href="/screener?sort_by=change_percent&sort_order=asc" className="text-xs text-emerald-400 hover:text-emerald-300">Screener</Link>
+            </div>
+            <div className="divide-y divide-white/5">
+              {market.top_losers.slice(0, 5).map((s) => (
+                <Link key={s.code} href={`/stocks/${s.code}`} className="flex items-center justify-between px-4 py-2.5 hover:bg-white/5 transition-colors">
+                  <div className="font-medium text-sm">{s.code}</div>
+                  <div className="text-right">
+                    <div className="font-mono text-sm">{formatPrice(s.price)}</div>
+                    <div className="text-xs font-mono text-red-400">{formatPercent(s.change_percent)}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="rounded-xl border border-white/10 bg-white/5 p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Watchlist Saya</h2>
@@ -65,13 +163,30 @@ export default function DashboardPage() {
           <div className="divide-y divide-white/5">
             {watchlist.map((item) => (
               <Link key={item.code} href={`/stocks/${item.code}`} className="flex items-center justify-between py-3 hover:bg-white/5 -mx-5 px-5 transition-colors">
-                <div>
-                  <div className="font-medium">{item.code}</div>
-                  <div className="text-xs text-white/40">{item.name}</div>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <div className="font-medium">{item.code}</div>
+                    <div className="text-xs text-white/40">{item.name}</div>
+                  </div>
+                  {item.alert_price && (
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded-full border ${
+                        item.alert_status === "below"
+                          ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                          : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                      }`}
+                      title={item.alert_status === "below" ? `Harga ${formatPrice(item.price ?? 0)} di bawah alert` : `Harga di atas alert`}
+                    >
+                      {item.alert_status === "below" ? "▲ Alert Terpenuhi" : "● Alert Aktif"}
+                    </span>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="font-mono text-sm">{item.price ? `Rp${item.price.toLocaleString()}` : "-"}</div>
-                  {item.alert_price && <div className="text-xs text-amber-400">Alert: Rp{item.alert_price.toLocaleString()}</div>}
+                  <div className={`text-xs font-mono ${item.change_percent >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                    {formatPercent(item.change_percent)}
+                  </div>
+                  {item.alert_price && <div className="text-xs text-white/40">Alert: Rp{item.alert_price.toLocaleString()}</div>}
                 </div>
               </Link>
             ))}

@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
   { href: "/screener", label: "Screener" },
   { href: "/signals", label: "Signals" },
+  { href: "/portfolio", label: "Portfolio" },
 ];
 
 export function Navbar() {

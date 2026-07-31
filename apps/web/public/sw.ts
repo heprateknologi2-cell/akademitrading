@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+declare const self: ServiceWorkerGlobalScope;
+
 const CACHE = "akademitrading-v1";
 const ASSETS = ["/", "/screener", "/signals"];
 
@@ -25,8 +27,10 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE).then((cache) => cache.put(event.request, clone));
         }
         return res;
-      }).catch(() => cached);
-      return cached || fetched;
+      }).catch(() => cached || Response.error());
+      return cached ? cached : fetched;
     })
   );
 });
+
+export {};

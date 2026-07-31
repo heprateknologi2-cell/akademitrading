@@ -6,7 +6,7 @@ declare module "next-auth" {
   interface Session { user: { id: string; email?: string | null; name?: string | null; image?: string | null; tier?: string } }
 }
 
-declare module "next-auth/jwt" {
+declare module "@auth/core/jwt" {
   interface JWT { id?: string; tier?: string }
 }
 

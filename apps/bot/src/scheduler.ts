@@ -7,7 +7,7 @@ export function startScheduler() {
     console.log("[Scheduler] Morning signal broadcast");
     try {
       const res = await fetch(`${config.API_URL}/api/signals/today`);
-      const json = await res.json();
+      const json = (await res.json()) as { data?: any };
       if (json.data?.length > 0) {
         await broadcastSignal(json.data);
       }
@@ -20,7 +20,7 @@ export function startScheduler() {
     console.log("[Scheduler] Afternoon signal broadcast");
     try {
       const res = await fetch(`${config.API_URL}/api/signals/today`);
-      const json = await res.json();
+      const json = (await res.json()) as { data?: any };
       if (json.data?.length > 0) {
         await broadcastSignal(json.data);
       }

@@ -27,7 +27,7 @@ export default function SubscriptionPage() {
       });
       const data = await res.json();
       if (data.redirect_url) {
-        window.location.href = data.redirect_url;
+        window.location.assign(data.redirect_url);
       } else {
         setError("Gagal memproses pembayaran");
       }

@@ -10,3 +10,6 @@ __pycache__/
 data/
 .DS_Store
 *.log
+
+# Local Netlify folder
+.netlify

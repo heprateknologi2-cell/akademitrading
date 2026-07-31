@@ -2,6 +2,11 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 
+from .cache import get_cached, set_cached
+
+HISTORY_TTL = 900
+INFO_TTL = 3600
+
 IDX_TICKERS = [
     "BBCA.JK", "BBRI.JK", "BMRI.JK", "BBNI.JK", "BTPS.JK",
     "TLKM.JK", "EXCL.JK", "ISAT.JK",
@@ -17,13 +22,19 @@ IDX_TICKERS = [
     "JSMR.JK", "ADHI.JK", "PTPP.JK",
     "MNCN.JK", "SCMA.JK",
     "HRUM.JK", "ANTM.JK",
-    "TOWR.JP", "TBIG.JK",
+    "TOWR.JK", "TBIG.JK",
     "MTEL.JK", "KEEN.JK",
     "CUAN.JK", "BUKA.JK",
     "GOTO.JK", "BYAN.JK",
 ]
 
+IHSG_TICKER = "^JKSE"
+
 def fetch_stock_history(ticker: str, period: str = "6mo") -> pd.DataFrame | None:
+    cache_key = f"hist:{ticker}:{period}"
+    cached = get_cached(cache_key, HISTORY_TTL)
+    if cached is not None:
+        return cached.copy()
     try:
         stock = yf.Ticker(ticker)
         df = stock.history(period=period)
@@ -31,6 +42,7 @@ def fetch_stock_history(ticker: str, period: str = "6mo") -> pd.DataFrame | None
             return None
         df.reset_index(inplace=True)
         df["Ticker"] = ticker
+        set_cached(cache_key, df, HISTORY_TTL)
         return df
     except Exception as e:
         print(f"Error fetching {ticker}: {e}")
@@ -45,10 +57,14 @@ def fetch_all_stocks(period: str = "6mo") -> list[pd.DataFrame]:
     return results
 
 def get_stock_info(ticker: str) -> dict:
+    cache_key = f"info:{ticker}"
+    cached = get_cached(cache_key, INFO_TTL)
+    if cached is not None:
+        return cached
     try:
         stock = yf.Ticker(ticker)
         info = stock.info
-        return {
+        result = {
             "code": ticker.replace(".JK", ""),
             "name": info.get("longName", ""),
             "sector": _map_sector(info.get("sector", "")),
@@ -61,6 +77,8 @@ def get_stock_info(ticker: str) -> dict:
             "der": _safe_divide(info.get("totalDebt", 0), info.get("totalStockholderEquity", 1)),
             "dividend_yield": info.get("dividendYield", 0),
         }
+        set_cached(cache_key, result, INFO_TTL)
+        return result
     except Exception as e:
         print(f"Error fetching info for {ticker}: {e}")
         return {"code": ticker.replace(".JK", "")}

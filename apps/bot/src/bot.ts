@@ -48,7 +48,7 @@ bot.command("bbc", async (ctx) => {
   }
   try {
     const res = await fetch(`${config.API_URL}/api/stocks/${code}`);
-    const json = await res.json();
+    const json = (await res.json()) as { data?: any };
     if (!json.data?.name) {
       return ctx.reply(`❌ Saham ${code} tidak ditemukan`);
     }

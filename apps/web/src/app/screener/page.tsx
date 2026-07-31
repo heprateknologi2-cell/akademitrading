@@ -12,10 +12,9 @@ const SECTORS = [
 ];
 
 export default function ScreenerPage() {
-  const [stocks, setStocks] = useState<StockItem[]>([]);
+  const [stocks, setStocks] = useState<StockItem[] | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
   const [sector, setSector] = useState("");
   const [rsiFilter, setRsiFilter] = useState("");
   const [macdFilter, setMacdFilter] = useState("");
@@ -24,19 +23,23 @@ export default function ScreenerPage() {
   const [sortOrder, setSortOrder] = useState("desc");
 
   const load = useCallback(async () => {
-    setLoading(true);
     const params: Record<string, string> = { limit: "50", page: page.toString(), sort_by: sortBy, sort_order: sortOrder };
     if (sector) params.sector = sector;
     if (rsiFilter) params.rsi_filter = rsiFilter;
     if (macdFilter) params.macd_filter = macdFilter;
     if (signalFilter) params.signal_filter = signalFilter;
-    const res = await fetchScreener(params);
-    setStocks(res.data);
-    setTotal(res.total);
-    setLoading(false);
+    return fetchScreener(params);
   }, [page, sector, rsiFilter, macdFilter, signalFilter, sortBy, sortOrder]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    load().then(res => {
+      if (!active) return;
+      setStocks(res.data);
+      setTotal(res.total);
+    }).catch(() => { if (active) setStocks([]); });
+    return () => { active = false; };
+  }, [load]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
@@ -104,7 +107,7 @@ export default function ScreenerPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {loading ? (
+              {stocks === null ? (
                 <tr><td colSpan={11} className="text-center p-8 text-white/40">Loading...</td></tr>
               ) : stocks.length === 0 ? (
                 <tr><td colSpan={11} className="text-center p-8 text-white/40">Tidak ada data</td></tr>
@@ -154,7 +157,7 @@ export default function ScreenerPage() {
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
             className="px-3 py-1 rounded border border-white/10 disabled:opacity-30 hover:bg-white/5">Prev</button>
           <span className="px-3 py-1">Page {page}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={stocks.length < 50}
+          <button onClick={() => setPage(p => p + 1)} disabled={(stocks?.length ?? 0) < 50}
             className="px-3 py-1 rounded border border-white/10 disabled:opacity-30 hover:bg-white/5">Next</button>
         </div>
       </div>
