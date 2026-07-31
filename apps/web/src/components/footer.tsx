@@ -20,7 +20,7 @@ export function Footer() {
               <span className="font-bold tracking-tight">akademitrading</span>
             </div>
             <p className="text-xs text-white/40 leading-relaxed">
-              Screener dan sinyal trading saham Indonesia. Analisis teknikal, fundamental, dan bandarmology.
+              Belajar membaca pasar dan membangun sistem trading saham Indonesia berbasis data.
             </p>
           </div>
 
@@ -31,7 +31,7 @@ export function Footer() {
               <li><Link href="/signals" className="text-white/40 hover:text-white/70 transition-colors">Sinyal</Link></li>
               <li><Link href="/portfolio" className="text-white/40 hover:text-white/70 transition-colors">Portofolio</Link></li>
               <li><Link href="/backtest" className="text-white/40 hover:text-white/70 transition-colors">Backtest</Link></li>
-              <li><Link href="/education" className="text-white/40 hover:text-white/70 transition-colors">Glosarium</Link></li>
+              <li><Link href="/education" className="text-white/40 hover:text-white/70 transition-colors">Akademi</Link></li>
             </ul>
           </div>
 

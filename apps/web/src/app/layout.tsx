@@ -18,10 +18,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://akademitrading-id.netlify.app"),
   title: {
-    default: "Akademitrading — Screener & Signal Saham Indonesia",
+    default: "Akademitrading — Belajar Trading Berbasis Data",
     template: "%s — Akademitrading",
   },
-  description: "Screener dan sinyal trading saham Indonesia real-time. Analisis teknikal, fundamental, dan bandarmology.",
+  description: "Platform belajar trading saham Indonesia dengan kurikulum terstruktur, screener, dan analisis pasar berbasis data.",
   manifest: "/manifest.json",
   icons: {
     icon: "/logo.png",
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Akademitrading" },
   other: { "mobile-web-app-capable": "yes" },
   openGraph: {
-    title: "Akademitrading — Screener & Signal Saham Indonesia",
-    description: "Screener dan sinyal trading saham Indonesia real-time. Analisis teknikal, fundamental, dan bandarmology.",
+    title: "Akademitrading — Belajar Trading Berbasis Data",
+    description: "Kurikulum trading, screener, dan analisis saham Indonesia dalam satu platform.",
     type: "website",
     locale: "id_ID",
     siteName: "akademitrading",
