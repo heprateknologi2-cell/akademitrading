@@ -52,41 +52,6 @@ jobs:
           cd apps/web
           npm run lint
 
-  deploy-netlify:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Build frontend
-        run: |
-          cd apps/web
-          npm ci
-          npm run build
-
-      - name: Deploy to Netlify
-        uses: netlify/actions-cli@v1
-        with:
-          args: deploy --prod --dir=apps/web/.next
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-
-  deploy-railway-backend:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to Railway
-        run: |
-          echo "Railway deploy triggered by push to main"
-          echo "Connect this repo to Railway manually on railway.app"
-          echo "Backend service will auto-deploy on git push"
+# Frontend deploy: Netlify auto-deploys via its own GitHub webhook + netlify.toml
+# Backend deploy: Railway auto-deploys via its own GitHub webhook (service: packages/data-engine)
+# No manual deploy step needed here — build-and-test is the CI gate.
