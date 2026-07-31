@@ -336,6 +336,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ id: stri
             <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-amber-500 inline-block" /> SMA 20</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-blue-500 inline-block" /> SMA 50</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-purple-500 inline-block" /> SMA 200</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-cyan-400 inline-block" /> EMA 20</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-sky-400/50 inline-block" /> Bollinger</span>
           </div>
           <div className="flex items-center gap-1">

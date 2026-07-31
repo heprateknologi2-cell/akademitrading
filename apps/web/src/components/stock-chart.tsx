@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { Time } from "lightweight-charts";
+import { Bar, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { Candle } from "@/lib/api";
 
 interface StockChartProps {
@@ -12,8 +13,56 @@ interface StockChartProps {
   height?: number;
 }
 
+function ema(values: number[], period: number) {
+  if (values.length === 0) return [];
+  const multiplier = 2 / (period + 1);
+  const result = [values[0]];
+  for (let i = 1; i < values.length; i++) result.push(values[i] * multiplier + result[i - 1] * (1 - multiplier));
+  return result;
+}
+
+function rsi(values: number[], period = 14) {
+  const result: Array<number | null> = Array(values.length).fill(null);
+  if (values.length <= period) return result;
+  let gain = 0;
+  let loss = 0;
+  for (let i = 1; i <= period; i++) {
+    const change = values[i] - values[i - 1];
+    gain += Math.max(change, 0);
+    loss += Math.max(-change, 0);
+  }
+  let averageGain = gain / period;
+  let averageLoss = loss / period;
+  result[period] = averageLoss === 0 ? 100 : 100 - 100 / (1 + averageGain / averageLoss);
+  for (let i = period + 1; i < values.length; i++) {
+    const change = values[i] - values[i - 1];
+    averageGain = (averageGain * (period - 1) + Math.max(change, 0)) / period;
+    averageLoss = (averageLoss * (period - 1) + Math.max(-change, 0)) / period;
+    result[i] = averageLoss === 0 ? 100 : 100 - 100 / (1 + averageGain / averageLoss);
+  }
+  return result;
+}
+
 export function StockChart({ candles, compareCandles, compareLabel, normalize = false, height = 420 }: StockChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const indicators = useMemo(() => {
+    const closes = candles.map(c => c.close);
+    const ema12 = ema(closes, 12);
+    const ema26 = ema(closes, 26);
+    const signal = ema(ema12.map((value, i) => value - ema26[i]), 9);
+    const rsi14 = rsi(closes);
+    return candles.map((c, i) => {
+      const macd = ema12[i] - ema26[i];
+      return {
+        date: c.date.slice(0, 10),
+        label: new Date(c.date).toLocaleDateString("id-ID", { day: "2-digit", month: "short" }),
+        rsi: rsi14[i],
+        macd,
+        signal: signal[i],
+        histogram: macd - signal[i],
+      };
+    });
+  }, [candles]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -77,12 +126,15 @@ export function StockChart({ candles, compareCandles, compareLabel, normalize = 
       const sma20 = chart.addSeries(LineSeries, { color: "#f59e0b", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
       const sma50 = chart.addSeries(LineSeries, { color: "#3b82f6", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
       const sma200 = chart.addSeries(LineSeries, { color: "#a855f7", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+      const ema20 = chart.addSeries(LineSeries, { color: "#22d3ee", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
       const bbUpper = chart.addSeries(LineSeries, { color: "rgba(125,211,252,0.4)", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
       const bbLower = chart.addSeries(LineSeries, { color: "rgba(125,211,252,0.4)", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
 
       if (smaData("sma_20").length > 0) sma20.setData(smaData("sma_20"));
       if (smaData("sma_50").length > 0) sma50.setData(smaData("sma_50"));
       if (smaData("sma_200").length > 0) sma200.setData(smaData("sma_200"));
+      const ema20Values = ema(candles.map(c => c.close), 20);
+      ema20.setData(candles.map((c, i) => ({ time: c.date.slice(0, 10) as Time, value: normalizeValue(ema20Values[i]) })));
       if (bbData("bb_upper").length > 0) bbUpper.setData(bbData("bb_upper"));
       if (bbData("bb_lower").length > 0) bbLower.setData(bbData("bb_lower"));
 
@@ -121,5 +173,42 @@ export function StockChart({ candles, compareCandles, compareLabel, normalize = 
     return <div className="flex items-center justify-center h-64 text-white/40 text-sm">Data historis tidak tersedia</div>;
   }
 
-  return <div ref={containerRef} className="w-full" style={{ height }} />;
+  const tooltipStyle = { background: "#020817", border: "1px solid rgba(255,255,255,.1)", borderRadius: 8, fontSize: 11 };
+
+  return (
+    <div className="space-y-3">
+      <div ref={containerRef} className="w-full" style={{ height }} />
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="rounded-lg border border-white/10 bg-black/10 p-2">
+          <div className="px-2 pb-1 text-[11px] font-medium text-white/50">RSI (14)</div>
+          <ResponsiveContainer width="100%" height={145}>
+            <ComposedChart data={indicators} margin={{ top: 4, right: 8, bottom: 0, left: -24 }}>
+              <XAxis dataKey="label" tick={{ fill: "#6b7280", fontSize: 9 }} minTickGap={35} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: "#6b7280", fontSize: 9 }} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#9ca3af" }} formatter={(value) => [Number(value).toFixed(2), "RSI"]} />
+              <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="4 4" strokeOpacity={0.55} />
+              <ReferenceLine y={30} stroke="#10b981" strokeDasharray="4 4" strokeOpacity={0.55} />
+              <Line type="monotone" dataKey="rsi" stroke="#f59e0b" dot={false} strokeWidth={1.5} connectNulls />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="rounded-lg border border-white/10 bg-black/10 p-2">
+          <div className="flex gap-3 px-2 pb-1 text-[11px] font-medium text-white/50">
+            <span>MACD (12, 26, 9)</span><span className="text-blue-400">MACD</span><span className="text-amber-400">Signal</span>
+          </div>
+          <ResponsiveContainer width="100%" height={145}>
+            <ComposedChart data={indicators} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+              <XAxis dataKey="label" tick={{ fill: "#6b7280", fontSize: 9 }} minTickGap={35} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: "#6b7280", fontSize: 9 }} axisLine={false} tickLine={false} width={42} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#9ca3af" }} formatter={(value, name) => [Number(value).toFixed(2), name]} />
+              <ReferenceLine y={0} stroke="rgba(255,255,255,.2)" />
+              <Bar dataKey="histogram" name="Histogram" fill="#10b981" opacity={0.45} />
+              <Line type="monotone" dataKey="macd" name="MACD" stroke="#3b82f6" dot={false} strokeWidth={1.5} />
+              <Line type="monotone" dataKey="signal" name="Signal" stroke="#f59e0b" dot={false} strokeWidth={1.5} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    </div>
+  );
 }
