@@ -22,6 +22,11 @@ export const metadata: Metadata = {
   },
   description: "Screener dan sinyal trading saham Indonesia real-time. Analisis teknikal, fundamental, dan bandarmology.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Akademitrading" },
   other: { "mobile-web-app-capable": "yes" },
   openGraph: {
@@ -30,11 +35,13 @@ export const metadata: Metadata = {
     type: "website",
     locale: "id_ID",
     siteName: "akademitrading",
+    images: [{ url: "/logo.png", width: 512, height: 512, alt: "akademitrading" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "Akademitrading — Screener & Signal Saham Indonesia",
     description: "Screener dan sinyal trading saham Indonesia real-time.",
+    images: ["/logo.png"],
   },
   robots: {
     index: true,

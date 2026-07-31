@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
@@ -20,9 +21,14 @@ export function Navbar() {
     <nav className="border-b border-white/10 bg-[#020817]/80 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold text-black">
-            A
-          </div>
+          <Image
+            src="/logo.png"
+            alt="akademitrading"
+            width={28}
+            height={28}
+            className="rounded-md"
+            priority
+          />
           <span className="font-bold text-lg tracking-tight">akademitrading</span>
         </Link>
 

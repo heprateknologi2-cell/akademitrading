@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -9,9 +10,13 @@ export function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center text-xs font-bold text-black">
-                A
-              </div>
+              <Image
+                src="/logo.png"
+                alt="akademitrading"
+                width={24}
+                height={24}
+                className="rounded-md"
+              />
               <span className="font-bold tracking-tight">akademitrading</span>
             </div>
             <p className="text-xs text-white/40 leading-relaxed">
