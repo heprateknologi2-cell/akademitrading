@@ -7,6 +7,7 @@ import { fetchScreener, type StockItem } from "@/lib/api";
 import { formatPrice, formatPercent, formatVolume, signalColor, signalLabel } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import { Filter, RotateCcw } from "lucide-react";
 
 const SECTORS = [
   "", "Financials", "Consumer Cyclicals", "Consumer Non-Cyclicals",
@@ -32,6 +33,13 @@ function ScreenerContent() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState(searchParams.get("sort_by") || "composite_score");
   const [sortOrder, setSortOrder] = useState(searchParams.get("sort_order") || "desc");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  const activeFilters = [sector, rsiFilter, macdFilter, signalFilter, minPe, maxPe, minPbv, maxPbv, minDividendYield].filter(Boolean).length;
+  const resetFilters = () => {
+    setSector(""); setRsiFilter(""); setMacdFilter(""); setSignalFilter("");
+    setMinPe(""); setMaxPe(""); setMinPbv(""); setMaxPbv(""); setMinDividendYield(""); setPage(1);
+  };
 
   const load = useCallback(async () => {
     const params: Record<string, string> = { limit: "100", page: page.toString(), sort_by: sortBy, sort_order: sortOrder };
@@ -66,8 +74,14 @@ function ScreenerContent() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold">Screener Saham</h1>
+    <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+      <div className="flex items-end justify-between gap-4">
+        <div><h1 className="text-2xl font-bold">Screener Saham</h1><p className="mt-1 text-sm text-slate-400">Saring saham IDX berdasarkan teknikal dan fundamental.</p></div>
+        <button type="button" onClick={() => setFiltersOpen(value => !value)} aria-expanded={filtersOpen}
+          className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm lg:hidden">
+          <Filter size={16} /> Filter {activeFilters > 0 && <span className="rounded-full bg-emerald-400 px-1.5 text-xs font-bold text-slate-950">{activeFilters}</span>}
+        </button>
+      </div>
 
       <div className="relative">
         <input
@@ -82,7 +96,7 @@ function ScreenerContent() {
         </svg>
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
+      <div className={`${filtersOpen ? "flex" : "hidden"} flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-4 lg:flex lg:flex-row lg:flex-wrap lg:items-center lg:border-0 lg:bg-transparent lg:p-0`}>
         <select value={sector} onChange={e => { setSector(e.target.value); setPage(1); }}
           className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white/80">
           <option value="">Semua Sektor</option>
@@ -147,9 +161,10 @@ function ScreenerContent() {
           <option value="price-desc">Harga ↓</option>
           <option value="volume-desc">Volume ↓</option>
         </select>
+        {activeFilters > 0 && <button type="button" onClick={resetFilters} className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-white/5 hover:text-white"><RotateCcw size={14} /> Reset filter</button>}
       </div>
 
-      <div className="rounded-xl border border-white/10 overflow-hidden">
+      <div className="hidden rounded-xl border border-white/10 overflow-hidden md:block">
         <div ref={tableRef} className="max-h-[680px] overflow-auto">
           <table className="grid min-w-[1100px] w-full text-sm">
             <thead className="sticky top-0 z-10 grid bg-[#0a1020]">
@@ -229,14 +244,33 @@ function ScreenerContent() {
         </div>
       </div>
 
-      <div className="flex justify-between items-center text-sm text-white/40">
+      <div className="grid gap-3 md:hidden">
+        {stocks === null ? Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-36 w-full rounded-xl" />) : stocks.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-400">Tidak ada saham yang cocok. Coba reset filter.</div>
+        ) : stocks.map(stock => (
+          <Link key={stock.code} href={`/stocks/${stock.code}`} className="rounded-xl border border-white/10 bg-white/[0.03] p-4 transition-colors hover:bg-white/[0.06]">
+            <div className="flex items-start justify-between gap-3">
+              <div><div className="font-semibold text-emerald-300">{stock.code}</div><div className="mt-1 line-clamp-1 text-xs text-slate-400">{stock.name}</div></div>
+              <div className="text-right"><div className="font-mono text-sm">{stock.price ? formatPrice(stock.price) : "-"}</div><div className={`font-mono text-xs ${stock.change_percent >= 0 ? "text-emerald-400" : "text-red-400"}`}>{formatPercent(stock.change_percent)}</div></div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-2 border-t border-white/5 pt-3 text-xs">
+              <div><span className="block text-slate-500">Sektor</span><span className="mt-1 block truncate text-slate-300">{stock.sector}</span></div>
+              <div><span className="block text-slate-500">RSI</span><span className="mt-1 block font-mono text-slate-300">{stock.rsi?.toFixed(1) ?? "-"}</span></div>
+              <div><span className="block text-slate-500">Skor</span><span className="mt-1 block font-mono text-slate-300">{stock.composite_score?.toFixed(0) ?? "-"}</span></div>
+            </div>
+            {stock.signals?.length > 0 && <div className="mt-3 flex flex-wrap gap-1">{stock.signals.slice(0, 2).map(s => <span key={s} className={`rounded-full border px-2 py-0.5 text-[10px] ${signalColor(s)}`}>{signalLabel(s)}</span>)}</div>}
+          </Link>
+        ))}
+      </div>
+
+      <div className="flex flex-col justify-between gap-3 text-sm text-slate-400 sm:flex-row sm:items-center">
         <span>{total} saham ditemukan</span>
         <div className="flex gap-2">
           <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-            className="px-3 py-1 rounded border border-white/10 disabled:opacity-30 hover:bg-white/5">Prev</button>
-          <span className="px-3 py-1">Page {page}</span>
+            className="px-3 py-1 rounded border border-white/10 disabled:opacity-30 hover:bg-white/5">Sebelumnya</button>
+          <span className="px-3 py-1">Halaman {page}</span>
           <button onClick={() => setPage(p => p + 1)} disabled={(stocks?.length ?? 0) < 100}
-            className="px-3 py-1 rounded border border-white/10 disabled:opacity-30 hover:bg-white/5">Next</button>
+            className="px-3 py-1 rounded border border-white/10 disabled:opacity-30 hover:bg-white/5">Berikutnya</button>
         </div>
       </div>
     </div>

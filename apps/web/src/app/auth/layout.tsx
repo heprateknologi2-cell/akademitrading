@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Masuk — Akademitrading",
+  title: "Masuk",
   description: "Masuk ke akun akademitrading untuk akses screener premium, sinyal eksklusif, dan portfolio tracker.",
   robots: { index: false, follow: false },
 };

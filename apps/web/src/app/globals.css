@@ -126,5 +126,16 @@
   }
   html {
     @apply font-sans;
+    color-scheme: dark;
+    scroll-behavior: smooth;
   }
+}
+
+::selection {
+  background: rgb(52 211 153 / 0.25);
+}
+
+:focus-visible {
+  outline: 2px solid rgb(52 211 153);
+  outline-offset: 2px;
 }

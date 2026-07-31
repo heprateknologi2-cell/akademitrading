@@ -28,8 +28,8 @@ export function Footer() {
             <h3 className="text-xs font-semibold text-white/60 uppercase tracking-wide">Fitur</h3>
             <ul className="space-y-1.5 text-sm">
               <li><Link href="/screener" className="text-white/40 hover:text-white/70 transition-colors">Screener</Link></li>
-              <li><Link href="/signals" className="text-white/40 hover:text-white/70 transition-colors">Signals</Link></li>
-              <li><Link href="/portfolio" className="text-white/40 hover:text-white/70 transition-colors">Portfolio</Link></li>
+              <li><Link href="/signals" className="text-white/40 hover:text-white/70 transition-colors">Sinyal</Link></li>
+              <li><Link href="/portfolio" className="text-white/40 hover:text-white/70 transition-colors">Portofolio</Link></li>
               <li><Link href="/backtest" className="text-white/40 hover:text-white/70 transition-colors">Backtest</Link></li>
             </ul>
           </div>

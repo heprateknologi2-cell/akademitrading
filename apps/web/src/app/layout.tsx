@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://akademitrading-id.netlify.app"),
   title: {
     default: "Akademitrading — Screener & Signal Saham Indonesia",
     template: "%s — Akademitrading",
@@ -58,6 +59,7 @@ export default function RootLayout({
   return (
     <html
       lang="id"
+      data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
@@ -66,8 +68,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-[#020817] text-white">
         <SessionProvider>
+          <a href="#main-content" className="fixed left-4 top-2 z-[60] -translate-y-20 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 transition-transform focus:translate-y-0">Lewati ke konten</a>
           <Navbar />
-          <main className="flex-1">{children}</main>
+          <main id="main-content" className="flex-1">{children}</main>
           <Footer />
         </SessionProvider>
       </body>

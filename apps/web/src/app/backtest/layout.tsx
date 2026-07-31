@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Backtest Strategi — Akademitrading",
+  title: "Backtest Strategi",
   description: "Uji strategi trading (SMA crossover, RSI) pada data historis saham Indonesia. Analisis performa, win rate, dan drawdown.",
   openGraph: {
     title: "Backtest Strategi Trading — Akademitrading",
