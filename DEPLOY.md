@@ -45,10 +45,10 @@ npm run build
 1. Login ke [Netlify](https://app.netlify.com)
 2. "Add new site" → "Import existing repo"
 3. Pilih repo GitHub `akademitrading`
-4. Set build config:
-   - **Build command**: `npx next build --output-standalone`
-   - **Publish directory**: `apps/web/.next`
-   - **Node version**: 24
+4. Build config is in `netlify.toml` (auto-detected):
+   - **Base directory**: `apps/web`
+   - **Build command**: `npm run build`
+   - **Node version**: 20
 
 5. Tambah environment variables di Netlify dashboard:
 ```
