@@ -66,7 +66,7 @@ export default function RootLayout({
         <meta name="application-name" content="Akademitrading" />
         <meta name="theme-color" content="#020817" />
       </head>
-      <body className="min-h-full flex flex-col bg-[#020817] text-white">
+      <body className="flex min-h-full flex-col bg-[#020817] text-white">
         <SessionProvider>
           <a href="#main-content" className="fixed left-4 top-2 z-[60] -translate-y-20 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 transition-transform focus:translate-y-0">Lewati ke konten</a>
           <Navbar />

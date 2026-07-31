@@ -123,6 +123,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    min-width: 320px;
+    background-image:
+      radial-gradient(circle at 50% -10%, rgb(16 185 129 / 0.08), transparent 32rem),
+      linear-gradient(to bottom, #020817, #030a15 65%);
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;
@@ -138,4 +143,17 @@
 :focus-visible {
   outline: 2px solid rgb(52 211 153);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
