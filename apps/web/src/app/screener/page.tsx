@@ -8,7 +8,7 @@ import { fetchScreener, type StockItem } from "@/lib/api";
 import { formatPrice, formatPercent, formatVolume, signalColor, signalLabel } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { ChevronDown, Filter, Info, RefreshCw, RotateCcw, X } from "lucide-react";
+import { Activity, Building2, ChevronDown, Filter, Info, RefreshCw, RotateCcw, Sparkles, TrendingUp, X } from "lucide-react";
 
 const SECTORS = [
   "", "Financials", "Consumer Cyclicals", "Consumer Non-Cyclicals",
@@ -214,38 +214,49 @@ function ScreenerContent() {
         <button type="button" onClick={resetFilters} className="px-2 py-1.5 text-xs text-slate-400 hover:text-white">Hapus semua</button>
       </div>}
 
-      {filtersOpen && <section aria-label="Panel filter" className="rounded-2xl border border-white/10 bg-[#0b1220] p-4 shadow-2xl sm:p-5">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div><h2 className="font-semibold text-slate-100">Filter saham</h2><p className="mt-1 text-xs text-slate-500">Perubahan langsung memperbarui hasil.</p></div>
-          <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white" aria-label="Tutup filter"><X size={18} /></button>
+      {filtersOpen && <section aria-label="Panel filter" className="overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-[#101827] to-[#0b1220] shadow-2xl shadow-black/30">
+        <div className="flex items-center justify-between gap-4 border-b border-white/[0.07] px-4 py-3.5 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-400/10 text-emerald-300 ring-1 ring-inset ring-emerald-400/20"><Filter size={16} /></span>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-slate-100">Sesuaikan hasil</h2>
+              <p className="truncate text-xs text-slate-500">{activeFilters ? `${activeFilters} filter aktif · ${stocks === null ? "Memuat…" : `${total} saham cocok`}` : "Pilih kriteria saham yang ingin ditampilkan"}</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => setFiltersOpen(false)} className="grid size-8 shrink-0 place-items-center rounded-lg text-slate-500 transition hover:bg-white/[0.07] hover:text-white" aria-label="Tutup filter"><X size={17} /></button>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="space-y-1.5 text-xs font-medium text-slate-400">Sektor
+
+        <div className="grid gap-px bg-white/[0.07] sm:grid-cols-2 lg:grid-cols-4">
+        <label className="group bg-[#0d1523] p-4 transition hover:bg-[#111b2b]">
+          <span className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"><Building2 size={13} className="text-emerald-400/70" /> Sektor</span>
         <select value={sector} onChange={e => { setSector(e.target.value); setPage(1); }}
-          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
+          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none focus:ring-0">
           <option value="">Semua Sektor</option>
           {SECTORS.filter(Boolean).map(s => <option key={s} value={s}>{s}</option>)}
         </select></label>
 
-        <label className="space-y-1.5 text-xs font-medium text-slate-400">RSI
+        <label className="group bg-[#0d1523] p-4 transition hover:bg-[#111b2b]">
+          <span className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"><Activity size={13} className="text-sky-400/70" /> RSI</span>
         <select value={rsiFilter} onChange={e => { setRsiFilter(e.target.value); setPage(1); }}
-          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
+          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none focus:ring-0">
           <option value="">Semua kondisi</option>
           <option value="oversold">Oversold (&lt;30)</option>
           <option value="overbought">Overbought (&gt;70)</option>
         </select></label>
 
-        <label className="space-y-1.5 text-xs font-medium text-slate-400">MACD
+        <label className="group bg-[#0d1523] p-4 transition hover:bg-[#111b2b]">
+          <span className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"><TrendingUp size={13} className="text-violet-400/70" /> MACD</span>
         <select value={macdFilter} onChange={e => { setMacdFilter(e.target.value); setPage(1); }}
-          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
+          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none focus:ring-0">
           <option value="">Semua kondisi</option>
           <option value="bullish">Bullish</option>
           <option value="bearish">Bearish</option>
         </select></label>
 
-        <label className="space-y-1.5 text-xs font-medium text-slate-400">Sinyal
+        <label className="group bg-[#0d1523] p-4 transition hover:bg-[#111b2b]">
+          <span className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"><Sparkles size={13} className="text-amber-400/70" /> Sinyal</span>
         <select value={signalFilter} onChange={e => { setSignalFilter(e.target.value); setPage(1); }}
-          className="block w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-white/80">
+          className="block w-full cursor-pointer border-0 bg-transparent p-0 text-sm font-medium text-slate-200 outline-none focus:ring-0">
           <option value="">Semua sinyal</option>
           <option value="golden_cross">Golden Cross</option>
           <option value="death_cross">Death Cross</option>
@@ -257,10 +268,13 @@ function ScreenerContent() {
         </select></label>
         </div>
 
-        <button type="button" onClick={() => setAdvancedFiltersOpen(value => !value)} aria-expanded={advancedFiltersOpen}
-          className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white">Filter lanjutan <ChevronDown size={15} className={`transition-transform ${advancedFiltersOpen ? "rotate-180" : ""}`} /></button>
+        <div className="flex items-center justify-between gap-3 border-t border-white/[0.07] px-4 py-3 sm:px-5">
+          <button type="button" onClick={() => setAdvancedFiltersOpen(value => !value)} aria-expanded={advancedFiltersOpen}
+            className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 transition hover:text-white">Filter lanjutan <ChevronDown size={14} className={`transition-transform ${advancedFiltersOpen ? "rotate-180" : ""}`} /></button>
+          {activeFilters > 0 && <button type="button" onClick={resetFilters} className="inline-flex items-center gap-1.5 text-xs text-slate-500 transition hover:text-red-300"><RotateCcw size={12} /> Reset</button>}
+        </div>
 
-        {advancedFiltersOpen && <div className="mt-4 grid gap-4 border-t border-white/10 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+        {advancedFiltersOpen && <div className="grid gap-4 border-t border-white/[0.07] bg-black/10 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
 
         <fieldset className="space-y-1.5"><legend className="text-xs font-medium text-slate-400">Rentang PE</legend><div className="flex items-center gap-2">
           <input type="number" min="0" step="0.1" value={minPe} onChange={e => { setMinPe(e.target.value); setPage(1); }}
@@ -314,10 +328,6 @@ function ScreenerContent() {
         </select></label>
         </div>}
 
-        <div className="mt-5 flex flex-col-reverse gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <button type="button" onClick={resetFilters} disabled={activeFilters === 0} className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm text-slate-400 hover:bg-white/5 hover:text-white disabled:pointer-events-none disabled:opacity-40"><RotateCcw size={14} /> Reset filter</button>
-          <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-lg bg-emerald-400 px-5 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-300">Lihat {stocks === null ? "hasil" : `${total} hasil`}</button>
-        </div>
       </section>}
 
       <section aria-labelledby="opportunity-heading" className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:p-5">
